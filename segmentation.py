@@ -27,7 +27,15 @@ def readSegmentation_single_position(movieID,position,timepoint,FluorWL,SEG_WL):
 
     # load segmentation
     extension = 'png'
-    segImg = movie.load_segmentation_image(position, timepoint, SEG_WL, extension=extension)
+
+    try:
+        segImg = movie.load_segmentation_image(position, timepoint, SEG_WL, extension=extension)
+    except FileNotFoundError as e:
+        # return emtpy dataframe if no segmetnation available #TODO unit test this
+        print("skipping this position because no segmentation image found: %s"%str(e))
+        return pd.DataFrame()
+
+
     fluorImg = movie.loadimage(position, timepoint, FluorWL, extension=extension, normalize=True)
 
     STATS = skimage.measure.regionprops(skimage.measure.label(segImg))  # different than matlab: regionprops doesnt take the raw image but the labeled one
