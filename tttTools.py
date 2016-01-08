@@ -4,7 +4,7 @@ import os
 import matplotlib.pyplot as plt
 # import scipy.misc
 import skimage.io
-
+from functools import lru_cache
 def parseTTTfilename(filename):
     "returns (directory, movieID, position, timepoint, wavelength). dir is the entire folder where the img is located (not the reference folder from TTT/movie)"
     if filename[-3:] == 'png':
@@ -23,7 +23,12 @@ def parseTTTfilename(filename):
 
 
 def getTTTDir():
-    TTTDIR = '/storage/icbTTTdata/TTT/'
+    import getpass
+    username = getpass.getuser()
+    if username in ['gpu-devuser01','gpu_devuser01']:
+        TTTDIR = '/home/%s/MSt/TTTData/'%username
+    else:
+        TTTDIR = '/storage/icbTTTdata/TTT/'
     return TTTDIR
 
 
@@ -59,7 +64,7 @@ def __load_image(filename):
 
     return img
 
-
+@lru_cache(maxsize=100)
 def loadimage(filename, normalize):
     img = __load_image(filename)
 
@@ -172,12 +177,12 @@ def get_image_patch(imgFile, normalize, x, y, patchsize_x, patchsize_y):
     assert patchsize_x%2 == 1 and patchsize_y%2 == 1, "only odd patchsize supported" # TODO relax to even patchsize
     img = loadimage(imgFile, normalize)
 
-    X_WINDOWSIZE_HALF = (patchsize_x-1)/2
-    Y_WINDOWSIZE_HALF = (patchsize_y-1)/2
-    x_box = range(max(1,x-X_WINDOWSIZE_HALF) , min(x+X_WINDOWSIZE_HALF,img.shape[1]))
-    y_box = range(max(1,y-Y_WINDOWSIZE_HALF) , min(y+Y_WINDOWSIZE_HALF,img.shape[0]))
+    X_WINDOWSIZE_HALF = int((patchsize_x-1)/2)
+    Y_WINDOWSIZE_HALF = int((patchsize_y-1)/2)
+    x_box = range(max(1,x-X_WINDOWSIZE_HALF) , min(x+X_WINDOWSIZE_HALF,img.shape[0]))  # TODO THIS is still a mess with rows/col vs x,y
+    y_box = range(max(1,y-Y_WINDOWSIZE_HALF) , min(y+Y_WINDOWSIZE_HALF,img.shape[1]))
 
-    return img[y_box, x_box] # confusing as rows are actually the y coordinate when indexing...
+    return img[np.ix_(x_box, y_box)] # confusing as rows are actually the y coordinate when indexing...
 
 
 if __name__ == '__main__':

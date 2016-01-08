@@ -1,5 +1,6 @@
 import tttTools
 
+
 class Movie(object):
     """an entire time lapse experiment """
 
