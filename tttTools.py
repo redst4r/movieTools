@@ -26,18 +26,6 @@ def getTTTDir():
     return TTTDIR
 
 
-# def createTTTfilename(TTTDIR, movieID, position, timepoint, WL, extension, SEGFLAG=False):
-#     if not SEGFLAG:
-#         filename = '%s/%s/%s_p%.4d/%s_p%.4d_t%.5d_z001_%s.%s' % (TTTDIR,movieID,movieID,position,movieID,position,timepoint,WL, extension)
-#     else:
-#         filename = '%s/%s/segmentation/%s_p%.4d/%s_p%.4d_t%.5d_z001_%s.%s' % (TTTDIR,movieID,movieID,position,movieID,position,timepoint,WL, extension)
-#     return filename
-
-
-# def createTATexpfilename(movieID):
-#     return '%s/%s/%s_TATexp.xml' % (getTTTDir(), movieID, movieID)
-
-
 def __normalize_image(img, background, gain=None):
 
     if gain is not None:
@@ -188,11 +176,6 @@ def get_image_patch(imgFile, normalize, x, y, patchsize_x, patchsize_y):
 
 if __name__ == '__main__':
     imgname = '/storage/icbTTTdata/TTT/140206PH8/140206PH8_p0045/140206PH8_p0045_t05373_z001_w01.png'
-    kwds = parseTTTfilename(imgname)
-    print(kwds)
-    print(createTTTfilename(*kwds))
-
-
     q = loadimage(imgname, normalize=True)
     plt.imshow(q)
     plt.show()

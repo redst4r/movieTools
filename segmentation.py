@@ -5,8 +5,11 @@ import matplotlib.pyplot as plt
 import tttTools
 import skimage.measure
 from collections import namedtuple
+from movie import Movie
+import pandas as pd
 
 segmentedObject = namedtuple('segObject', "relX relY time position area wavelength")
+
 
 def readSegmentation_single_position(movieID,position,timepoint,FluorWL,SEG_WL):
     """
@@ -17,27 +20,21 @@ def readSegmentation_single_position(movieID,position,timepoint,FluorWL,SEG_WL):
        FluorWL                    - what wavelength to quantify
        SEG_WL                     - extension of the segmenation images (e.g 'w01.png')
      Outputs:
-       objects_struct - a struct containing the objects' relX,Y absX,Y
-       position time and wavelength
+       objects_df                 - pandas.Dataframe containing all the segmented objects with their properties
     """
-    pass
 
-    TTTDIR=tttTools.getTTTDir()
+    movie = Movie(movieID)
 
     # load segmentation
     extension = 'png'
-    segfilename = tttTools.createTTTfilename(TTTDIR, movieID,position,timepoint,SEG_WL,extension=extension,SEGFLAG=True)
-    segImg =tttTools.loadimage(segfilename, normalize=False)
+    segImg = movie.load_segmentation_image(position, timepoint, SEG_WL, extension=extension)
+    fluorImg = movie.loadimage(position, timepoint, FluorWL, extension=extension, normalize=True)
 
-    fluor_filename = tttTools.createTTTfilename(TTTDIR, movieID,position,timepoint,FluorWL,extension=extension,SEGFLAG=False)
-    fluorImg =tttTools.loadimage(fluor_filename, normalize=True)
+    STATS = skimage.measure.regionprops(skimage.measure.label(segImg))  # different than matlab: regionprops doesnt take the raw image but the labeled one
 
-    STATS = skimage.measure.regionprops(segImg!=0)
-
-    # filter out some dirt
     segObjects = []
 
-    minsize, eccfilter = 25, 0.9
+    minsize, eccfilter = 25, 0.9  # filter out some dirt
     for obj in filter(lambda x: x.area>minsize and x.eccentricity < eccfilter, STATS):
 
         x, y = obj.centroid
@@ -57,3 +54,7 @@ def readSegmentation_single_position(movieID,position,timepoint,FluorWL,SEG_WL):
     # absX, absY = tttTools.mapCoordinates_relative2absolute(relXV,relYV,positionV,tatfile)
     # objects_struct.absX = absX;
     # objects_struct.absY = absY;
+
+    objects_df = pd.DataFrame(segObjects)
+
+    return objects_df

@@ -1,5 +1,4 @@
 import tttTools
-from segmentation import readSegmentation_single_position
 
 class Movie(object):
     """an entire time lapse experiment """
@@ -20,15 +19,11 @@ class Movie(object):
         :return:
         """
         if not SEGFLAG:
-            filename = '%s/%s/%s_p%.4d/%s_p%.4d_t%.5d_z001_%s.%s' % (self.TTTDIR, self.movieID, self.movieID, position, self.movieID, position, timepoint,WL, extension)
-            filename2 = '{dir}/{movie}/{movie}_p{pos:.4d}/{movie}_p{pos:.4d}_t{time:.5d}_z001_{WL}.{ext}'.format(
+            filename = '{dir}/{movie}/{movie}_p{pos:04d}/{movie}_p{pos:04d}_t{time:05d}_z001_{WL}.{ext}'.format(
                     dir=self.TTTDIR, movie=self.movieID, pos=position, time=timepoint,WL=WL, ext=extension)
-            assert filename == filename2 #TODO replace with second
         else:
-            filename = '%s/%s/segmentation/%s_p%.4d/%s_p%.4d_t%.5d_z001_%s.%s' % (self.TTTDIR, self.movieID, self.movieID,position,self.movieID,position,timepoint,WL, extension)
-            filename2 = '{dir}/{movie}/segmentation/{movie}_p{pos:.4d}/{movie}_p{pos:.4d}_t{time:.5d}_z001_{WL}.{ext}'.format(
+            filename = '{dir}/{movie}/segmentation/{movie}_p{pos:04d}/{movie}_p{pos:04d}_t{time:05d}_z001_{WL}.{ext}'.format(
                     dir=self.TTTDIR, movie=self.movieID, pos=position, time=timepoint,WL=WL, ext=extension)
-            assert filename == filename2 #TODO replace with second
 
         return filename
 
@@ -41,8 +36,8 @@ class Movie(object):
 
     def loadimage(self, position, timepoint, WL, extension, normalize):
         filename = self.createTTTfilename(position, timepoint, WL, extension, SEGFLAG=False)
+        print("loading: %s" % filename)
         return tttTools.loadimage(filename, normalize)
-
 
     def load_segmentation_image(self, position, timepoint, WL, extension):
         """
@@ -54,6 +49,7 @@ class Movie(object):
         :return: seg image, np.array
         """
         fname = self.createTTTfilename(position, timepoint, WL, extension,SEGFLAG=True)
+        print("loading segmentation: %s" % fname)
         return tttTools.loadimage(fname, normalize=False)
 
         # TODO exception if no ssegmentaion is available
@@ -67,5 +63,6 @@ class Movie(object):
         :param SEG_WL: segmenation wavlength {w00.png}
         :return:
         """
+        from segmentation import readSegmentation_single_position
         return readSegmentation_single_position(self.movieID, position, timepoint, quantifyWavelength, SEG_WL)
 
