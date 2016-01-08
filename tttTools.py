@@ -2,7 +2,8 @@ import re
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-import scipy.misc
+# import scipy.misc
+import skimage.io
 
 def parseTTTfilename(filename):
     "returns (directory, movieID, position, timepoint, wavelength). dir is the entire folder where the img is located (not the reference folder from TTT/movie)"
@@ -39,15 +40,20 @@ def __normalize_image(img, background, gain=None):
 
 def __load_image(filename):
     "loads an image, does bit conversion. THis one should always be used for the quantitative stuff"
-    img = scipy.misc.imread(filename)
+
+    # img = scipy.misc.imread(filename) # WARNING: THIS ONE IS BAD, something strange happens when we load binary images: its non-detemrinsitc, smthimes the loaded image is crap!!
+    img = skimage.io.imread(filename)
 
     if img.dtype == np.uint8:
         img = img / (2 ** 8 - 1)
 
     elif img.dtype == np.uint16:
         img = img / (2 ** 16 - 1)
-    elif img.dtype == np.int32: # also seems to correspond to 16 bit (comapring matlabs output)
+    elif img.dtype == np.int32: # also seems to correspond to 16 bit (comapring matlabs output): seems to be -2**31 to 2**31, maybe the background/gain can be negative!
+        assert not np.any(img<0)
         img = img/ (2 ** 16 - 1)
+    elif img.dtype == np.bool: # proably a segmentation image
+        pass # just leave it boolean
     else:
         raise NotImplementedError('unknwon bitdept')
 
