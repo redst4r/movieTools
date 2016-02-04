@@ -26,7 +26,7 @@ def getTTTDir():
     import getpass
     username = getpass.getuser()
     if username in ['gpu-devuser01','gpu_devuser01']:
-        TTTDIR = '/home/%s/MSt/TTTData/'%username
+        TTTDIR = '/home/%s/MSt/TTT/'%username
     else:
         TTTDIR = '/storage/icbTTTdata/TTT/'
     return TTTDIR
@@ -72,27 +72,60 @@ def loadimage(filename, normalize):
 
     if normalize:
 
-        BGpos_folder = "%s/../background/%s_p%.4d/" % (directory, movieID, position)
-        
-        bgname = "%s/%s_p%.4d_t%.5d_z001_w%s.png" % (BGpos_folder, movieID, position, timepoint, wavelength)
-        gainname = '%s/gain_w%s.png' % (BGpos_folder, wavelength)
-        offsetname = '%s/offset_w%s.png'% (BGpos_folder, wavelength)
+        # for brightfield, different normalization
+        if wavelength == '00':
+            print('Felixs normalization')
+            img = loadimage_felix_bg(filename)
+        else:
+            BGpos_folder = "%s/../background/%s_p%.4d/" % (directory, movieID, position)
+            bgname = "%s/%s_p%.4d_t%.5d_z001_w%s.png" % (BGpos_folder, movieID, position, timepoint, wavelength)
+            gainname = '%s/gain_w%s.png' % (BGpos_folder, wavelength)
+            offsetname = '%s/offset_w%s.png'% (BGpos_folder, wavelength)
 
-        if os.path.exists(bgname):
-            background = __load_image(bgname)
-            if os.path.exists(gainname):
-                gain = __load_image(gainname)*255
-                img = __normalize_image(img, background, gain)
+            if os.path.exists(bgname):
+                background = __load_image(bgname)
+                if os.path.exists(gainname):
+                    gain = __load_image(gainname)*255
+                    img = __normalize_image(img, background, gain)
+
+                else:
+                    print('Warning: Gain/offset not found %s using old normalization\n' % gainname)
+                    img = __normalize_image(img, background, gain=None)
 
             else:
-                print('Warning: Gain/offset not found %s using old normalization\n' % gainname)
-                img = __normalize_image(img, background, gain=None)
-
-        else:
-            print('Warning: Background not found %s no normalization will be applied.\n' % bgname)
+                print('Warning: Background not found %s no normalization will be applied.\n' % bgname)
 
     img[np.isnan(img)]=0
     img[np.isinf(img)]=0
+    return img
+
+def loadimage_felix_bg(filename):
+    """
+    for brightfield we can use felix's special normalizatiton procedure
+    :param filename:
+    :return:
+    """
+
+    directory, movieID, position, timepoint, wavelength, extension = parseTTTfilename(filename)
+    bgfilename = '%s/../background_projected/%s_p%04d/%s_p%04d_w%s_projbg.png' %(directory,movieID,position,movieID,position,wavelength)
+#             I_org = imread(filename);
+#             bg = imread(bgfilename);
+#             I = im2double(I_org);
+#             bg = im2double(bg);
+
+    bg = __load_image(bgfilename)
+    I = __load_image(filename)
+
+    I = I/bg;
+    I = I-np.min(I);
+    img = I/np.max(I);
+
+    # felix's proposed inter-picture normailisation (the one i dont get)
+    # subtract from the corrected "img" the difference
+    # mean(img)-mean(bg)
+
+    img = img- (np.mean(img)-np.mean(bg))
+
     return img
 
 
@@ -166,6 +199,7 @@ def __ismember__(A,B):
 def get_image_patch(imgFile, normalize, x, y, patchsize_x, patchsize_y):
     """
     isolates a patch at the given position in the image
+
     :param imgFile: an image file (str)
     :param normalize: bool wheter to apply background normalization
     :param x: center of the patch in x ()
