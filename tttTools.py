@@ -1,10 +1,13 @@
+from os import listdir
 import re
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-# import scipy.misc
 import skimage.io
+from scipy.io import loadmat # MATLAB file loading
 from functools import lru_cache
+
+
 def parseTTTfilename(filename):
     "returns (directory, movieID, position, timepoint, wavelength). dir is the entire folder where the img is located (not the reference folder from TTT/movie)"
     if filename[-3:] == 'png':
@@ -65,7 +68,7 @@ def __load_image(filename):
     return img
 
 @lru_cache(maxsize=100)
-def loadimage(filename, normalize):
+def loadimage(filename, normalize, BF_norm='felix'):
     img = __load_image(filename)
 
     directory, movieID, position, timepoint, wavelength, extension = parseTTTfilename(filename)
@@ -74,8 +77,12 @@ def loadimage(filename, normalize):
 
         # for brightfield, different normalization
         if wavelength == '00':
-            print('Felixs normalization')
-            img = loadimage_felix_bg(filename)
+            if BF_norm == 'felix':
+                print('Felixs normalization')
+                img = loadimage_felix_bg(filename)
+            elif BF_norm == 'SLIC':
+                print('SLIC normalization')
+                img = loadimage_SLIC_bg(filename)
         else:
             BGpos_folder = "%s/../background/%s_p%.4d/" % (directory, movieID, position)
             bgname = "%s/%s_p%.4d_t%.5d_z001_w%s.png" % (BGpos_folder, movieID, position, timepoint, wavelength)
@@ -127,6 +134,56 @@ def loadimage_felix_bg(filename):
     img = img- (np.mean(img)-np.mean(bg))
 
     return img
+
+def loadimage_SLIC_bg(filename):
+    """
+    using SLIC by Tinying to normalize the images
+
+    current problem (on the SLIC side) is that it cannot be com[puted for the
+    entire time of the position (huge MEM). hence i compute it for different intervals
+
+    :param filename:
+    :return:
+    """
+
+    _SLIC_load_precomputed_bgs(filename)
+    I = skimage.io.imread(filename)  # dont use __loadimage here, the SLIC is calculated on the [0, 255] range, hence it has to be applied to this range
+
+    imgCorrect = (I-matDict['darkfield'])/matDict['flatfield']  # (I - DF)/FF
+    return imgCorrect
+
+def _SLIC_load_precomputed_bgs(filename):
+    """
+    loads the precomputed darkfield, flatfield, baseline from the SLIC normalization
+    assumes the bg-files are located in movieDir/background_SLIC/
+
+    :param filename: the image we want to normalize (used to parse timepoint/position/movie/ etc)
+    :return: a dict with 3 fields: darkfield, flatfield, b
+    """
+    # the entire data needed is stored in a matfile located under /background_SLIC/
+    # however, we have to figure out which one
+    directory, movieID, position, timepoint, wavelength, extension = parseTTTfilename(filename)
+
+    bgFolder = "%s/../background_SLIC" % directory  # as directory is not the movieDir, but the one where the file is located
+    pattern = re.compile(r"%s_p%.04d_(\d+)-(\d+)_w%s.%s_SLIC.mat" % (movieID, position, wavelength, extension))
+
+    candidates = []
+    for f in listdir(bgFolder):
+        m = pattern.match(f)
+        if m:  # it the pattern matches to position/wavlength, check if the matfile is in the right timeinterval
+            minT, maxT = int(m.group(1)), int(m.group(2))
+            if minT <= timepoint <= maxT:
+                candidates.append(f)
+
+    if len(candidates) == 1:
+        matfile = os.path.join(bgFolder, candidates[0])
+    elif len(candidates) == 0:
+        raise ValueError('no background correction found for movie %s, pos %d, time %d,  WL%s' %(movieID, position, timepoint, wavelength ))
+
+    else:  #multiple ones corresponding to the timepoint
+        raise ValueError('MULTIPLE background correction found for movie %s, pos %d, time %d,  WL%s' %(movieID, position, timepoint, wavelength ))
+
+    return loadmat(matfile) # its a dict. fields are 'flatfield','darkfield','fi_base', 'timepoint'
 
 
 def mapCoordinates_relative2absolute(relxVector, relyVector, positionVector, xmlfilename):
@@ -196,7 +253,7 @@ def __ismember__(A,B):
 #     return [bind.get(itm, None) for itm in a]  # None can be replaced by any other "not in b" value
 
 
-def get_image_patch(imgFile, normalize, x, y, patchsize_x, patchsize_y):
+def get_image_patch(imgFile, normalize, x, y, patchsize_x, patchsize_y, BF_norm='felix'):
     """
     isolates a patch at the given position in the image
 
@@ -209,7 +266,7 @@ def get_image_patch(imgFile, normalize, x, y, patchsize_x, patchsize_y):
     :return: np.array: patchsize_x, patchsize_x
     """
     assert patchsize_x%2 == 1 and patchsize_y%2 == 1, "only odd patchsize supported" # TODO relax to even patchsize
-    img = loadimage(imgFile, normalize)
+    img = loadimage(imgFile, normalize, BF_norm)
 
     X_WINDOWSIZE_HALF = int((patchsize_x-1)/2)
     Y_WINDOWSIZE_HALF = int((patchsize_y-1)/2)
@@ -221,6 +278,14 @@ def get_image_patch(imgFile, normalize, x, y, patchsize_x, patchsize_y):
 
 if __name__ == '__main__':
     imgname = '/storage/icbTTTdata/TTT/140206PH8/140206PH8_p0045/140206PH8_p0045_t05373_z001_w01.png'
-    q = loadimage(imgname, normalize=True)
+    q = loadimage(imgname, normalize=True, BF_norm=BF_norm)
     plt.imshow(q)
     plt.show()
+
+
+
+    imgname = '/storage/icbTTTdata/TTT/140206PH8/140206PH8_p0020/140206PH8_p0020_t02500_z001_w00.png'
+    q = loadimage_SLIC_bg(imgname)
+    w = loadimage_felix_bg(imgname)
+
+    I = __load_image(imgname)

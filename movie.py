@@ -67,3 +67,14 @@ class Movie(object):
         from segmentation import readSegmentation_single_position
         return readSegmentation_single_position(self.movieID, position, timepoint, quantifyWavelength, SEG_WL)
 
+
+
+class Genealogy(object):
+    """"""
+
+    def __init__(self, ):
+        """Constructor for Genealogy"""
+
+
+
+
