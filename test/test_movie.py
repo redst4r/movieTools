@@ -3,6 +3,7 @@ sys.path.append('..')
 from movie import Movie
 import numpy as np
 import pandas as pd
+import imageNormalizer
 def test_createTTTFilename():
     """
 
@@ -23,10 +24,10 @@ def test_createTATexpfilename():
 def test_loadimage():
     m = Movie('140206PH8')
 
-    img_BF = m.loadimage(1,100,'w00','png', normalize=False)
+    img_BF = m.loadimage(1,100,'w00','png', normalizer=imageNormalizer.NoNormalizer()) # TODO mock NoNormalizer
     assert img_BF.shape == (1040, 1388)
 
-    img_FL = m.loadimage(1,1,'w01','png', normalize=True)
+    img_FL = m.loadimage(1,1,'w01','png', normalizer=imageNormalizer.NoNormalizer())  # TODO mock NoNormalizer
     assert img_FL.shape == (1040, 1388)
 
 def test_load_image_segmentation():
