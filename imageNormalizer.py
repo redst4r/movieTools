@@ -61,6 +61,7 @@ class ImageNormalizer(object):
         """
         raise NotImplementedError("ImageNormalizer subclasses have to implement this method")
 
+
 class NoNormalizer(ImageNormalizer):
     """
     does not do any normalization at all, just load the image
@@ -215,6 +216,7 @@ class Felix_Normalizer(ImageNormalizer):
         plt.imshow(self.__load_bg_for__(filename))
         plt.colorbar()
         plt.title('felixs background')
+
 
 class MSch_Normalizer(ImageNormalizer):
     """
