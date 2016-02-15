@@ -5,6 +5,7 @@ import tttTools
 import os
 import re
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def __load_raw_image__(filename):
@@ -78,9 +79,10 @@ class SLIC_Normalizer(ImageNormalizer):
     method by Tinying Peng
     """
     
-    def __init__(self, ):
+    def __init__(self, background_dir='background_SLIC'):
         """Constructor for SLIC_Normalizer"""
         super().__init__()
+        self.background_dir = background_dir
 
     def _SLIC_load_precomputed_bgs(self, filename):
         """
@@ -95,7 +97,7 @@ class SLIC_Normalizer(ImageNormalizer):
         # however, we have to figure out which one
         directory, movieID, position, timepoint, wavelength, extension = tttTools.parseTTTfilename(filename)
 
-        bgFolder = "%s/../background_SLIC" % directory  # as directory is not the movieDir, but the one where the file is located
+        bgFolder = "%s/../%s" % (directory, self.background_dir)  # as directory is not the movieDir, but the one where the file is located
         pattern = re.compile(r"%s_p%.04d_(\d+)-(\d+)_w%s.%s_SLIC.mat" % (movieID, position, wavelength, extension))
 
         candidates = []
@@ -116,9 +118,41 @@ class SLIC_Normalizer(ImageNormalizer):
 
         return loadmat(matfile) # its a dict. fields are 'flatfield','darkfield','fi_base', 'timepoint'
 
+    def plot_background(self, filename):
+        SLIC_dict = self._SLIC_load_precomputed_bgs(filename)
+        plt.figure()
+        plt.subplot(2,2,1)
+        plt.imshow(SLIC_dict['darkfield'])
+        plt.title('darkfield')
+        plt.colorbar()
+
+        plt.subplot(2,2,2)
+        plt.imshow(SLIC_dict['flatfield'])
+        plt.title('flatfield')
+        plt.colorbar()
+
+        plt.subplot(2,2,3)
+        plt.plot(SLIC_dict['timepoint'].T, SLIC_dict['fi_base'])
+        plt.title('base')
+
+        plt.subplot(2,2,4)
+        plt.imshow(self.normalize(filename))
+        plt.title('normalized image')
+        plt.colorbar()
+
+        plt.show()
+
+
+
     @lru_cache(maxsize=100)
     def normalize(self,filename):
         """
+        the image Equation:
+        I_obs = (I_true  + base) * S + D
+        S is gain or flatfield
+        D is darkfield
+        base is a time varying baseline intensity (but constant in space)
+
         #TODO: current problem (on the SLIC side) is that it cannot be com[puted for the
         entire time of the position (huge MEM). hence i compute it for different intervals
 
@@ -129,7 +163,10 @@ class SLIC_Normalizer(ImageNormalizer):
         matDict = self._SLIC_load_precomputed_bgs(filename)
         I = __load_raw_image__(filename)  # dont use __bit_normalize here, the SLIC is calculated on the [0, 255] range, hence it has to be applied to this range
 
-        imgCorrect = (I-matDict['darkfield'])/matDict['flatfield']  # (I - DF)/FF
+        _, _, _, timepoint, _, _ = tttTools.parseTTTfilename(filename)
+        t = matDict['timepoint'].flatten()  # all the flatten() action because timepoint and fi_base are stored as 2D matrixes in matlab instead of vectors
+        b = matDict['fi_base'][t==timepoint].flatten()
+        imgCorrect = (I-matDict['darkfield'])/matDict['flatfield'] -b # (I - DF)/FF - Base
         return imgCorrect
 
 
@@ -148,11 +185,7 @@ class Felix_Normalizer(ImageNormalizer):
         :param filename: the path to the image file
         :return:
         """
-
-        directory, movieID, position, timepoint, wavelength, extension = tttTools.parseTTTfilename(filename)
-        bgfilename = '%s/../background_projected/%s_p%04d/%s_p%04d_w%s_projbg.png' %(directory,movieID,position,movieID,position,wavelength)
-
-        bg = __bit_normalize__(bgfilename)
+        bg = self.__load_bg_for__(filename)
         I = __bit_normalize__(filename)
 
         I = I/bg
@@ -166,6 +199,22 @@ class Felix_Normalizer(ImageNormalizer):
 
         return img
 
+    def __load_bg_for__(self,target_file):
+        """loads the background required to normalize target_file
+        i.e. targetfile is not the file which gets loaded here!!"""
+        directory, movieID, position, timepoint, wavelength, extension = tttTools.parseTTTfilename(target_file)
+        bgfilename = '%s/../background_projected/%s_p%04d/%s_p%04d_w%s_projbg.png' %(directory,movieID,position,movieID,position,wavelength)
+        bg = __bit_normalize__(bgfilename)
+        return bg
+
+
+    def plot_background(self, filename):
+        """plots the bg to normalize 'filename'"""
+
+        plt.figure()
+        plt.imshow(self.__load_bg_for__(filename))
+        plt.colorbar()
+        plt.title('felixs background')
 
 class MSch_Normalizer(ImageNormalizer):
     """
@@ -191,8 +240,9 @@ class MSch_Normalizer(ImageNormalizer):
             if os.path.exists(gainname):
                 gain = __bit_normalize__(gainname)*255
             else:
-                raise Exception('Warning: Gain/offset not found %s using old normalization\n' % gainname)
-                #gain = None
+                # raise Exception('Warning: Gain/offset not found %s using old normalization\n' % gainname)
+                print('Warning: Gain/offset not found %s using old normalization\n' % gainname)
+                gain = None
 
             img = self.__normalize_image(img, background, gain=gain)
 
@@ -208,7 +258,7 @@ class MSch_Normalizer(ImageNormalizer):
         if gain is not None:
             normed = ((img - background) / gain)
         else:
-            raise Exception("deprecated stuff: normalization without gain")
+            # raise Exception("deprecated stuff: normalization without gain")
             bg = np.median(img.flatten())
             normed = ((img / background) - 1) * bg
 
