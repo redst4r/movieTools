@@ -9,10 +9,11 @@ import numpy as np
 class Movie(object):
     """an entire time lapse experiment """
 
-    def __init__(self, movieID):
+    def __init__(self, movieID, verbose=False):
         """Constructor for Movie"""
         self.movieID = movieID
         self.TTTDIR = tttTools.getTTTDir()
+        self.verbose = verbose
 
     def createTTTfilename(self, position, timepoint, WL, extension, SEGFLAG=False):
         """
@@ -51,7 +52,8 @@ class Movie(object):
         :return: np.array of the normalized image
         """
         filename = self.createTTTfilename(position, timepoint, WL, extension, SEGFLAG=False)
-        print("loading: %s" % filename)
+        if self.verbose:
+            print("loading: %s" % filename)
         return normalizer.normalize(filename)
 
     def load_segmentation_image(self, position, timepoint, WL, extension):
@@ -64,7 +66,8 @@ class Movie(object):
         :return: seg image, np.array
         """
         fname = self.createTTTfilename(position, timepoint, WL, extension,SEGFLAG=True)
-        print("loading segmentation: %s" % fname)
+        if self.verbose:
+            print("loading segmentation: %s" % fname)
 
         # create the NoNormalizer on the fly, which just loads the plain image
         return NoNormalizer().normalize(fname)

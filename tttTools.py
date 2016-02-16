@@ -1,12 +1,7 @@
-from os import listdir
 import re
 import numpy as np
-import os
-import matplotlib.pyplot as plt
-import skimage.io
-from scipy.io import loadmat # MATLAB file loading
-from functools import lru_cache
-from imageNormalizer import NoNormalizer
+
+import imageNormalizer # careful, cyclic dependence of tttTools and imageNormzlier
 
 def parseTTTfilename(filename):
     "returns (directory, movieID, position, timepoint, wavelength). dir is the entire folder where the img is located (not the reference folder from TTT/movie)"
@@ -116,7 +111,7 @@ def get_image_patch(imgFile, x, y, patchsize_x, patchsize_y, normalizer=None):
     :return: np.array: patchsize_x, patchsize_x
     """
     if normalizer is None:
-        normalizer = NoNormalizer()
+        normalizer = imageNormalizer.NoNormalizer()
 
     assert patchsize_x%2 == 1 and patchsize_y%2 == 1, "only odd patchsize supported" # TODO relax to even patchsize
     img = normalizer.normalize(imgFile)
