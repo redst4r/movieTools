@@ -19,6 +19,7 @@ def __load_raw_image__(filename):
     # img = scipy.misc.imread(filename) # WARNING: THIS ONE IS BAD, something strange happens when we load binary images: its non-detemrinsitc, smthimes the loaded image is crap!!
     return skimage.io.imread(filename)
 
+
 def __bit_normalize__(filename):
     "loads an image, does bit conversion. supposed to put the values into [0,1]"
 

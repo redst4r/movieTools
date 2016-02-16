@@ -1,10 +1,10 @@
 import tttTools
-from imageNormalizer import NoNormalizer
 import pandas as pd
 import skimage.measure
 from collections import namedtuple
-from imageNormalizer import MSch_Normalizer
+from imageNormalizer import MSch_Normalizer, NoNormalizer
 import numpy as np
+
 
 class Movie(object):
     """an entire time lapse experiment """
@@ -70,7 +70,12 @@ class Movie(object):
             print("loading segmentation: %s" % fname)
 
         # create the NoNormalizer on the fly, which just loads the plain image
-        return NoNormalizer().normalize(fname)
+        img_SEG = NoNormalizer().normalize(fname)
+
+        if not np.all(np.logical_or(img_SEG == True, img_SEG == False)):  # make sure its a binary mask
+            raise ValueError('segmentation image is not binary!')
+
+        return img_SEG
 
         # TODO exception if no ssegmentaion is available
 
@@ -84,7 +89,6 @@ class Movie(object):
          Outputs:
            objects_df                 - pandas.Dataframe containing all the segmented objects with their properties
         """
-
 
         extension = 'png'
 
