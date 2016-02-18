@@ -108,7 +108,7 @@ class Movie(object):
         minsize, eccfilter = 25, 0.9  # filter out some dirt
         for obj in filter(lambda x: x.area>minsize and x.eccentricity < eccfilter, STATS):
 
-            x, y = obj.centroid
+            y, x = obj.centroid # TODO centroid is (row, column) !! row is usually the y coordinate. also ntoe that (0,0) is in the upper left corner!
             t = timepoint
             p = position
             area = obj.area
