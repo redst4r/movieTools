@@ -6,7 +6,7 @@ import pandas as pd
 import imageNormalizer
 from unittest.mock import patch, MagicMock
 import pytest
-
+import os
 
 def test_createTTTFilename():
     """
@@ -97,7 +97,51 @@ def test_get_segmented_objects_return_pdDataFrame(mock_MSchNorm, mock_NoNorm):
     assert isinstance(df, pd.DataFrame)
     print(df.head())
 
+@patch('movie.os.listdir')
+def test_get_all_positions(mock_listdir):
+    "check the parsing of the foldernames"
 
+    m = Movie('140206PH8')
+    movieFolder = os.path.join(m.TTTDIR, m.movieID)
+
+    trueFolders = ['140206PH8_p0001', '140206PH8_p0002', '140206PH8_p0003']
+    fakeFoldes =  ['120502PH7_p0001', '140206PH8_p002', '140206PH8_p0003.old']
+    mock_listdir.return_value = trueFolders + fakeFoldes
+
+    pos = m.get_all_positions()
+
+    assert mock_listdir.called
+    assert isinstance(pos, dict), 'has to return a dict (int)->folderName'
+
+    #slightly complicated, as the returned values are as absolute Path
+    trueReturn = {i+1: os.path.join(movieFolder,j) for i,j in enumerate(trueFolders)}
+    assert pos == trueReturn , 'did not return the true positions'
+
+@patch('movie.Movie.get_all_positions')
+@patch('movie.os.listdir')
+def test_all_images(mock_listdir, mock_getpos):
+
+    m = Movie('140206PH8')
+
+    #some fake returns of position directories
+    fakeFolder = '/someFolder/firstPositionDir/'
+    mock_getpos.return_value = {1:fakeFolder}
+
+    # some fake directory lisstings
+    fakedir_content = ['140206PH8_p0001_t00001_z001_w01.png', '140206PH8_p0001_t00001_z001_w01.png_meta.xml']
+    mock_listdir.return_value = fakedir_content
+
+    result = m.get_all_images()
+    assert mock_getpos.called
+    mock_listdir.assert_called_with('/someFolder/firstPositionDir/')
+
+    assert list(result.values()) == [fakeFolder + fakedir_content[0]], 'probably returned the xml file too!'
+
+def test_createPositionFoldername():
+    assert isinstance(Movie('140206PH8').createPositionFoldername(1), str)
+
+def test_get_all_images():
+    pass
 
 if __name__ == '__main__':
     test_createTTTFilename()

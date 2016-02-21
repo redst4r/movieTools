@@ -4,6 +4,8 @@ import skimage.measure
 from collections import namedtuple
 from imageNormalizer import MSch_Normalizer, NoNormalizer
 import numpy as np
+import os
+import re
 
 
 class Movie(object):
@@ -14,6 +16,49 @@ class Movie(object):
         self.movieID = movieID
         self.TTTDIR = tttTools.getTTTDir()
         self.verbose = verbose
+
+    def get_all_positions(self):
+        """
+        determines all available positions (parsing the folders names)
+        :return: dict  int->abs.folderName
+        """
+        movieID = self.movieID
+        movieFolder = os.path.join(self.TTTDIR, movieID)
+
+        positions = {}  # a dict of int-> absolute positionFilename
+        pattern = re.compile(r"%s_p(\d{4})$" % (movieID))
+        for f in os.listdir(movieFolder):
+            m = pattern.match(f)
+            if m:
+                positions[(int(m.group(1)))] = os.path.join(movieFolder,f)
+
+        return positions
+
+    def get_all_images(self):
+        """
+        retrieves all images from the movie, across all timepoints, positions
+        :return: dict with (position, timepoint, WL) -> filename of the image
+        """
+        positions = self.get_all_positions()
+        images = {}  # dict with (position, time, WL) -> filename
+        for p, pDir in positions.items():
+            # get the images present
+            pattern = re.compile(r"%s_p%.04d_t(\d{5})_z001_w(\d+).png$"%(self.movieID,p))
+            for f in os.listdir(pDir):
+                m =pattern.match(f)
+                if m:
+                    t, wl = int(m.group(1)), int(m.group(2))
+                    images[(p,t,wl)] = os.path.join(pDir, f)
+        return images
+
+
+    def createPositionFoldername(self, position):
+        """
+        returns the folder corresponding to requested position
+        :param position: int
+        :return: str
+        """
+        return '{dir}/{movie}/{movie}_p{pos:04d}/'.format(dir=self.TTTDIR, movie=self.movieID, pos=position)
 
     def createTTTfilename(self, position, timepoint, WL, extension, SEGFLAG=False):
         """
@@ -95,7 +140,7 @@ class Movie(object):
         try:
             segImg = self.load_segmentation_image(position, timepoint, SEG_WL, extension=extension)
         except FileNotFoundError as e:
-            # return emtpy dataframe if no segmetnation available #TODO unit test this
+            # return emtpy dataframe if no segmetnation available
             print("skipping this position because no segmentation image found: %s"%str(e))
             return pd.DataFrame()
 
@@ -108,7 +153,7 @@ class Movie(object):
         minsize, eccfilter = 25, 0.9  # filter out some dirt
         for obj in filter(lambda x: x.area>minsize and x.eccentricity < eccfilter, STATS):
 
-            y, x = obj.centroid # TODO centroid is (row, column) !! row is usually the y coordinate. also ntoe that (0,0) is in the upper left corner!
+            y, x = obj.centroid # DONE centroid is (row, column) !! row is usually the y coordinate. also ntoe that (0,0) is in the upper left corner!
             t = timepoint
             p = position
             area = obj.area
