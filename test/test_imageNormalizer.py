@@ -16,23 +16,18 @@ def test___load_raw_image__returnType():
     assert q.dtype == 'uint8'
 
 
-@patch('skimage.io.imread')
-def test___bit_normalize__(mock_imread):
+def test___bit_normalize__():
 
     fakeImg = get_random_image()
-    mock_imread.return_value = fakeImg
-
-    q = imageNormalizer.__bit_normalize__('someFile.png')
+    q = imageNormalizer.__bit_normalize__(fakeImg)
     assert q.max() <= 1
 
-@patch('skimage.io.imread')
-def test___bit_normalize__exception(mock_imread):
+def test___bit_normalize__exception():
     "has to raise exception if some crayz image type"
     fakeImg = get_random_image(type='float32')
-    mock_imread.return_value = fakeImg
 
     with pytest.raises(NotImplementedError):
-        imageNormalizer.__bit_normalize__('someFile.png')
+        imageNormalizer.__bit_normalize__(fakeImg)
 
 "------------------------------------------------------------------------"
 @patch('skimage.io.imread')
@@ -92,3 +87,48 @@ def test_Felix_Normalizer_normalize(mock_imread, mock_loadBG):
 
     assert q.shape == (1040, 1388)
     assert q.dtype == 'float64'
+
+
+def test_MSch_Normalizer___normalize_image():
+    mN = MSch_Normalizer()
+
+    fakeImg_bg = get_random_image(type='float32')
+    fakeImg_gain = get_random_image(type='float32')
+    fakeImg_img = get_random_image(type='float32')
+
+    q = mN.__normalize_image__(img=fakeImg_img, background=fakeImg_bg, gain=fakeImg_gain)
+
+    assert q.shape==fakeImg_img.shape
+
+@patch('imageNormalizer.__load_raw_image__')
+@patch('imageNormalizer.os.path.exists')
+def test_MSch_Normalizer_normalize(mock_os_path_exists, mock_load_raw):
+
+    fakeImg = get_random_image(type='uint8')
+    mock_load_raw.return_value = fakeImg
+
+    mock_os_path_exists.return_value = True
+
+    mN = MSch_Normalizer()
+
+    imgName = '/somepath/140206PH8/140206PH8_p0045/140206PH8_p0045_t05373_z001_w01.png'
+    q = mN.normalize(filename=imgName)
+
+    assert mock_os_path_exists.call_count == 2,  'didnt check if bfg and gain file exists'  # actually gets called a second time when checking for gain
+    assert q.shape==fakeImg.shape
+
+
+@patch('imageNormalizer.__load_raw_image__')
+@patch('imageNormalizer.os.path.exists')
+def test_MSch_Normalizer_normalize_fileNotFound_exception(mock_os_path_exists, mock_load_raw):
+
+    fakeImg = get_random_image(type='uint8')
+    mock_load_raw.return_value = fakeImg
+
+    mock_os_path_exists.return_value = False
+
+    mN = MSch_Normalizer()
+
+    imgName = '/somepath/140206PH8/140206PH8_p0045/140206PH8_p0045_t05373_z001_w01.png'
+    with pytest.raises(Exception):
+        mN.normalize(filename=imgName)

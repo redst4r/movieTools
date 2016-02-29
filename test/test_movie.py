@@ -25,10 +25,12 @@ def test_createTATexpfilename():
     assert isinstance(m.createTATexpfilename(), str), 'no string returned'
 
 
+@patch('movie.os.path.isfile')
 @patch('imageNormalizer.NoNormalizer', autospec=True) # note that this mocks the instance of NoNormalizer created here!
-def test_loadimage(mock_norm):
+def test_loadimage(mock_norm, mock_isfile):
     "loadimage just utilizes the Normalizer to load an image. no own action!"
     mock_norm.normalize.return_value = np.ones((1040,1388))
+    mock_isfile.return_value = True
 
     m = Movie('140206PH8')
     img_BF = m.loadimage(1,100,'w00','png', normalizer=mock_norm)
@@ -41,12 +43,23 @@ def test_loadimage(mock_norm):
     assert img_FL.shape == (1040, 1388)
     assert mock_norm.normalize.called, 'normalization wasnt called'
 
+@patch('movie.os.path.isfile')
+@patch('imageNormalizer.NoNormalizer', autospec=True)
+def test_loadimage_return_none_if_no_file(mock_norm, mock_isfile):
+    mock_norm.normalize.return_value = np.ones((1040,1388))
+    mock_isfile.return_value = False
+
+    m = Movie('140206PH8')
+    img = m.loadimage(1,100,'w00','png', normalizer=mock_norm)
+    assert not mock_norm.normalize.called, 'should not call noramlize if image doesnt exist; jsut return None'
+    assert img is None
+
 
 @patch('movie.NoNormalizer', autospec=True)  # mocking the NoNormalizer inside the package
 def test_load_image_segmentation(mock_norm):
     # TODO this mocking doesnt seem to be very pythonic
     mock_norm.return_value = mock_norm  # the constructor called when doing NoNormalizer() just returns the same mock again
-    mock_norm.normalize.return_value = np.ones((1040,1388))
+    mock_norm.normalize.return_value = np.ones((1040,1388), dtype='uint8')*255
 
     m = Movie('140206PH8')
     img_SEG = m.load_segmentation_image(1,1,'w00','png')
@@ -55,12 +68,28 @@ def test_load_image_segmentation(mock_norm):
 
 
 @patch('movie.NoNormalizer', autospec=True)  # mocking the NoNormalizer inside the package
+def test_load_image_segmentation_binarize(mock_norm):
+    # TODO this mocking doesnt seem to be very pythonic
+    mock_norm.return_value = mock_norm  # the constructor called when doing NoNormalizer() just returns the same mock again
+    fakeSegImg =  np.ones((1040,1388), dtype='uint8')*255  # usually we dont get 0/1 images
+    mock_norm.normalize.return_value =  fakeSegImg
+
+    m = Movie('140206PH8')
+    img_SEG = m.load_segmentation_image(1,1,'w00','png')
+    assert img_SEG.shape == (1040, 1388)
+    assert mock_norm.normalize.called, 'no call to NoNormalizer.normalize'
+    assert np.all(np.logical_or(img_SEG == True, img_SEG == False))
+
+@patch('movie.NoNormalizer', autospec=True)  # mocking the NoNormalizer inside the package
 def test_load_image_segmentation_exception_if_not_binary(mock_norm):
     """ must throw an exception if the loaded mask is not binary"""
 
     # TODO this mocking doesnt seem to be very pythonic
     mock_norm.return_value = mock_norm  # the constructor called when doing NoNormalizer() just returns the same mock again
-    mock_norm.normalize.return_value = np.ones((1040,1388))*0.1  # a non binary mask
+
+    fakeSegImg = np.ones((1040,1388), dtype='uint8')*255
+    fakeSegImg[0,0] = 128   # a non binary mask
+    mock_norm.normalize.return_value =  fakeSegImg
 
     m = Movie('140206PH8')
     with pytest.raises(ValueError):
@@ -68,34 +97,34 @@ def test_load_image_segmentation_exception_if_not_binary(mock_norm):
 
     assert mock_norm.normalize.called, 'no call to NoNormalizer.normalize'
 
-
-def test_get_segmented_objects_return_empty_if_no_segmentation():
-    m = Movie('140206PH8')
-
-    with patch('movie.Movie.load_segmentation_image', new=MagicMock(side_effect=FileNotFoundError(), autospec=True)):
-        df = m.get_segmented_objects(1,1000,'w00','w00')
-        assert len(df) == 0
-
-
-@patch('movie.NoNormalizer', autospec=True)
-@patch('movie.MSch_Normalizer', autospec=True)
-def test_get_segmented_objects_return_pdDataFrame(mock_MSchNorm, mock_NoNorm):
-    m = Movie('140206PH8')
-
-    mock_MSchNorm.return_value = mock_MSchNorm # construcvtor
-    mock_MSchNorm.normalize.return_value = np.ones((1040,1388)) # TODO this mocking doesnt seem to be very pythonic
-
-    mock_NoNorm.return_value = mock_NoNorm # construcvtor
-    mock_NoNorm.normalize.return_value = np.ones((1040,1388)) # TODO this mocking doesnt seem to be very pythonic
-
-
-    df = m.get_segmented_objects(1,1000,'w00','w00')
-
-    for m in [mock_NoNorm, mock_MSchNorm]:
-        assert m.normalize.called
-
-    assert isinstance(df, pd.DataFrame)
-    print(df.head())
+"removed as get_segmented_objects is deprecated"
+# def test_get_segmented_objects_return_empty_if_no_segmentation():
+#     m = Movie('140206PH8')
+#
+#     with patch('movie.Movie.load_segmentation_image', new=MagicMock(side_effect=FileNotFoundError(), autospec=True)):
+#         df = m.get_segmented_objects(1,1000,'w00','w00')
+#         assert len(df) == 0
+#
+#
+# @patch('movie.NoNormalizer', autospec=True)
+# @patch('movie.MSch_Normalizer', autospec=True)
+# def test_get_segmented_objects_return_pdDataFrame(mock_MSchNorm, mock_NoNorm):
+#     m = Movie('140206PH8')
+#
+#     mock_MSchNorm.return_value = mock_MSchNorm # construcvtor
+#     mock_MSchNorm.normalize.return_value = np.ones((1040,1388)) # TODO this mocking doesnt seem to be very pythonic
+#
+#     mock_NoNorm.return_value = mock_NoNorm # construcvtor
+#     mock_NoNorm.normalize.return_value = np.ones((1040,1388)) # TODO this mocking doesnt seem to be very pythonic
+#
+#
+#     df = m.get_segmented_objects(1,1000,'w00','w00')
+#
+#     for m in [mock_NoNorm, mock_MSchNorm]:
+#         assert m.normalize.called
+#
+#     assert isinstance(df, pd.DataFrame)
+#     print(df.head())
 
 @patch('movie.os.listdir')
 def test_get_all_positions(mock_listdir):
@@ -117,13 +146,14 @@ def test_get_all_positions(mock_listdir):
     trueReturn = {i+1: os.path.join(movieFolder,j) for i,j in enumerate(trueFolders)}
     assert pos == trueReturn , 'did not return the true positions'
 
+
 @patch('movie.Movie.get_all_positions')
 @patch('movie.os.listdir')
 def test_all_images(mock_listdir, mock_getpos):
 
     m = Movie('140206PH8')
 
-    #some fake returns of position directories
+    # some fake returns of position directories
     fakeFolder = '/someFolder/firstPositionDir/'
     mock_getpos.return_value = {1:fakeFolder}
 
@@ -142,6 +172,8 @@ def test_createPositionFoldername():
 
 def test_get_all_images():
     pass
+
+
 
 if __name__ == '__main__':
     test_createTTTFilename()

@@ -6,8 +6,9 @@ import skimage.measure
 from collections import namedtuple
 import numpy as np
 from imageNormalizer import MSch_Normalizer
-
+import movie
 segmentedObject = namedtuple('segObject', "relX relY timepoint position area coords")
+
 
 class SegmentationReader(object):
     """
@@ -24,10 +25,10 @@ class SegmentationReaderFelix(SegmentationReader):
     using felix segmented brightfield images
     """
 
-    def __init__(self, movie, SEG_WL='w00', fileExtension='png'):
+    def __init__(self, the_movie:movie.Movie, SEG_WL='w00', fileExtension='png'):
         """Constructor for SegmentationReaderFelix(SegmentationReader)"""
         super().__init__()
-        self.movie = movie
+        self.movie = the_movie
         self.SEG_WL = SEG_WL
         self.fileExtension = fileExtension
 
@@ -63,9 +64,12 @@ class SegmentationReaderFelix(SegmentationReader):
 
 class FluorescenceQuantifier(object):
 
-    def __init__(self, movie):
-        self.movie = movie
-        self.normalizer = MSch_Normalizer()  # nice trick, so that every call to quantify can use cached results
+    def __init__(self, the_movie:movie.Movie, normalizer):
+        self.movie = the_movie
+
+        # nice trick, so that every call to quantify can use cached results
+        self.normalizer = normalizer if normalizer is not None else MSch_Normalizer()
+
     def quantify(self, segObject, WL):
         """
         given the segmented object, get its fluorescence
@@ -73,15 +77,15 @@ class FluorescenceQuantifier(object):
         :param WL:
         :return:
         """
-        try:
-            img = self.movie.loadimage( segObject.position, segObject.timepoint, WL, 'png' , normalizer=self.normalizer)
-        except FileNotFoundError as e:
-            # print("skipping this position because no fluorescence image found: %s"%str(e))
+        img = self.movie.loadimage(segObject.position, segObject.timepoint,
+                                   WL, 'png', normalizer=self.normalizer)
+
+
+        if img is None:  # file does not exist
             return None
-
-        sum_int = np.sum(img[segObject.coords[:,0], segObject.coords[:,1]])
-
-        return sum_int
+        else:
+            sum_int = np.sum(img[segObject.coords[:,0], segObject.coords[:,1]])
+            return sum_int
 
 
 

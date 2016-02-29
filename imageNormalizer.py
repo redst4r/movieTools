@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def __load_raw_image__(filename):
+def __load_raw_image__(filename:str):
     """
     loads an image file from the disk and returns it as np.array. THIS is the prefered method of loading stuff
     as there are some issues with e.g. scipy.misc.imread!!
@@ -20,10 +20,8 @@ def __load_raw_image__(filename):
     return skimage.io.imread(filename)
 
 
-def __bit_normalize__(filename):
-    "loads an image, does bit conversion. supposed to put the values into [0,1]"
-
-    img = __load_raw_image__(filename)
+def __bit_normalize__(img:np.ndarray):
+    "does bit conversion for a given image. supposed to put the values into [0,1]"
 
     if img.dtype == np.uint8:
         img = img / (2 ** 8 - 1)
@@ -36,7 +34,7 @@ def __bit_normalize__(filename):
     elif img.dtype == np.bool: # proably a segmentation image
         pass # just leave it boolean
     else:
-        raise NotImplementedError('unknown bitdept')
+        raise NotImplementedError('unknown bitdept %s' % img.dtype)
 
     return img
 
@@ -76,7 +74,7 @@ class NoNormalizer(ImageNormalizer):
         return __load_raw_image__(filename)
 
 
-class SLIC_Normalizer(ImageNormalizer):
+class SLIC_Normalizer(ImageNormalizer):  # TODO UNIT TEST this class
     """
     method by Tinying Peng
     """
@@ -148,6 +146,7 @@ class SLIC_Normalizer(ImageNormalizer):
 
     @lru_cache(maxsize=100)
     def normalize(self,filename):
+        print('SLIC normalize called with: %s' % filename)
         """
         the image Equation:
         I_obs = (I_true  + base) * S + D
@@ -188,7 +187,7 @@ class Felix_Normalizer(ImageNormalizer):
         :return:
         """
         bg = self.__load_bg_for__(filename)
-        I = __bit_normalize__(filename)
+        I = __bit_normalize__(__load_raw_image__(filename))
 
         I = I/bg
         I = I-np.min(I)
@@ -206,7 +205,7 @@ class Felix_Normalizer(ImageNormalizer):
         i.e. targetfile is not the file which gets loaded here!!"""
         directory, movieID, position, timepoint, wavelength, extension = tttTools.parseTTTfilename(target_file)
         bgfilename = '%s/../background_projected/%s_p%04d/%s_p%04d_w%s_projbg.png' %(directory,movieID,position,movieID,position,wavelength)
-        bg = __bit_normalize__(bgfilename)
+        bg = __bit_normalize__(__load_raw_image__(bgfilename))
         return bg
 
 
@@ -231,7 +230,8 @@ class MSch_Normalizer(ImageNormalizer):
     @lru_cache(maxsize=100)
     def normalize(self, filename):
 
-        img = __bit_normalize__(filename)
+        print('MSCH normalize called with: %s' % filename)
+        img = __bit_normalize__(__load_raw_image__(filename))
         directory, movieID, position, timepoint, wavelength, extension = tttTools.parseTTTfilename(filename)
         BGpos_folder = "%s/../background/%s_p%.4d/" % (directory, movieID, position)
         bgname = "%s/%s_p%.4d_t%.5d_z001_w%s.png" % (BGpos_folder, movieID, position, timepoint, wavelength)
@@ -239,15 +239,15 @@ class MSch_Normalizer(ImageNormalizer):
         offsetname = '%s/offset_w%s.png'% (BGpos_folder, wavelength)
 
         if os.path.exists(bgname):
-            background = __bit_normalize__(bgname)
+            background = __bit_normalize__(__load_raw_image__(bgname))
             if os.path.exists(gainname):
-                gain = __bit_normalize__(gainname)*255
+                gain = __bit_normalize__(__load_raw_image__(gainname))*255
             else:
                 # raise Exception('Warning: Gain/offset not found %s using old normalization\n' % gainname)
                 print('Warning: Gain/offset not found %s using old normalization\n' % gainname)
                 gain = None
 
-            img = self.__normalize_image(img, background, gain=gain)
+            img = self.__normalize_image__(img, background, gain=gain)
 
         else:
             raise Exception('Warning: Background not found %s no normalization will be applied.\n' % bgname)
@@ -256,7 +256,7 @@ class MSch_Normalizer(ImageNormalizer):
         img[np.isinf(img)]=0
         return img
 
-    def __normalize_image(self, img, background, gain=None):
+    def __normalize_image__(self, img, background, gain=None):
 
         if gain is not None:
             normed = ((img - background) / gain)

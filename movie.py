@@ -2,7 +2,7 @@ import tttTools
 import pandas as pd
 import skimage.measure
 from collections import namedtuple
-from imageNormalizer import MSch_Normalizer, NoNormalizer
+from imageNormalizer import MSch_Normalizer, NoNormalizer, __bit_normalize__
 import numpy as np
 import os
 import re
@@ -51,7 +51,6 @@ class Movie(object):
                     images[(p,t,wl)] = os.path.join(pDir, f)
         return images
 
-
     def createPositionFoldername(self, position):
         """
         returns the folder corresponding to requested position
@@ -99,7 +98,13 @@ class Movie(object):
         filename = self.createTTTfilename(position, timepoint, WL, extension, SEGFLAG=False)
         if self.verbose:
             print("loading: %s" % filename)
-        return normalizer.normalize(filename)
+
+        if os.path.isfile(filename):
+            return normalizer.normalize(filename)
+        else:
+            if self.verbose:
+                print("file %s does not exist, returning None" % filename)
+            return None
 
     def load_segmentation_image(self, position, timepoint, WL, extension):
         """
@@ -115,7 +120,8 @@ class Movie(object):
             print("loading segmentation: %s" % fname)
 
         # create the NoNormalizer on the fly, which just loads the plain image
-        img_SEG = NoNormalizer().normalize(fname)
+        img_SEG = NoNormalizer().normalize(fname) #  # this loads the image as it is, ie no bit conversion!
+        img_SEG =  __bit_normalize__(img_SEG)  # explicitly do the bit conversion, such that 255 -> 1
 
         if not np.all(np.logical_or(img_SEG == True, img_SEG == False)):  # make sure its a binary mask
             raise ValueError('segmentation image is not binary!')
@@ -127,14 +133,14 @@ class Movie(object):
     def get_segmented_objects(self, position, timepoint, FluorWL, SEG_WL):
         """
         Inputs:
-           position                   - position of interest
-           timepoint                  - the timepoint we're interested in
-           FluorWL                    - what wavelength to quantify
-           SEG_WL                     - extension of the segmenation images (e.g 'w01.png')
+        :param position:          position of interest
+        :param timepoint          the timepoint we're interested in
+        :param FluorWL            what wavelength to quantify
+        :param SEG_WL             extension of the segmenation images (e.g 'w01.png')
          Outputs:
            objects_df                 - pandas.Dataframe containing all the segmented objects with their properties
         """
-
+        raise Exception('method is deprecated and cannot be used any more. Use segQuant.SegmentationReader')
         extension = 'png'
 
         try:
@@ -144,7 +150,8 @@ class Movie(object):
             print("skipping this position because no segmentation image found: %s"%str(e))
             return pd.DataFrame()
 
-        fluorImg = self.loadimage(position, timepoint, FluorWL, extension=extension, normalizer=MSch_Normalizer())  #TODO: using michiSch normalization always
+        # TODO: using michiSch normalization always
+        fluorImg = self.loadimage(position, timepoint, FluorWL, extension=extension, normalizer=MSch_Normalizer())
 
         STATS = skimage.measure.regionprops(skimage.measure.label(segImg))  # different than matlab: regionprops doesnt take the raw image but the labeled one
 
@@ -174,16 +181,3 @@ class Movie(object):
         objects_df = pd.DataFrame(segObjects)
 
         return objects_df
-
-
-
-
-class Genealogy(object):
-    """"""
-
-    def __init__(self, ):
-        """Constructor for Genealogy"""
-
-
-
-
