@@ -38,6 +38,11 @@ def __bit_normalize__(img:np.ndarray):
 
     return img
 
+@lru_cache(maxsize=100)
+def loadmat_cached(matfile):
+    "just a cached version to scipy.io.loadmat since many calls to _SLIC_load_precomputed_bgs with different args load the same matfile"
+    print('SLIC: loading matfile %s' %matfile)
+    return loadmat(matfile)
 
 class ImageNormalizer(object):
     """
@@ -116,7 +121,7 @@ class SLIC_Normalizer(ImageNormalizer):  # TODO UNIT TEST this class
         else:  #multiple ones corresponding to the timepoint
             raise ValueError('MULTIPLE background correction found for movie %s, pos %d, time %d,  WL%s' %(movieID, position, timepoint, wavelength ))
 
-        return loadmat(matfile) # its a dict. fields are 'flatfield','darkfield','fi_base', 'timepoint'
+        return loadmat_cached(matfile) # its a dict. fields are 'flatfield','darkfield','fi_base', 'timepoint'
 
     def plot_background(self, filename):
         SLIC_dict = self._SLIC_load_precomputed_bgs(filename)

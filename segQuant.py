@@ -52,12 +52,11 @@ class SegmentationReaderFelix(SegmentationReader):
         minsize, eccfilter = 25, 0.9  # filter out some dirt
         for obj in filter(lambda x: x.area>minsize and x.eccentricity < eccfilter, STATS):
 
-            x, y = obj.centroid
+            y, x = obj.centroid  # centroid is (row, column) !! row is usually the y coordinate. also note that (0,0) is in the upper left corner!
             t = timepoint
             p = position
             area = obj.area
             coordinates = obj.coords
-            #wl = np.sum(fluorImg[obj.coords[:,0], obj.coords[:,1]])  # coords is a n X 2 array with pixel coordinates
 
             yield segmentedObject(relX=x, relY=y, timepoint=t, position=p, area=area, coords=coordinates)
 
@@ -79,7 +78,6 @@ class FluorescenceQuantifier(object):
         """
         img = self.movie.loadimage(segObject.position, segObject.timepoint,
                                    WL, 'png', normalizer=self.normalizer)
-
 
         if img is None:  # file does not exist
             return None

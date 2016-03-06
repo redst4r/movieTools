@@ -98,27 +98,84 @@ def __ismember__(A,B):
 #     return [bind.get(itm, None) for itm in a]  # None can be replaced by any other "not in b" value
 
 
-def get_image_patch(imgFile, x, y, patchsize_x, patchsize_y, normalizer=None):
+def get_image_patch(imgFile, x, y, patchsize_x, patchsize_y, normalizer=None, padValue=None):
     """
     isolates a patch at the given position in the image
 
     :param imgFile: an image file (str)
-    :param x: center of the patch in x ()
-    :param y: center of the patch in y
+    :param x: center of the patch in x (the is COLUMS!!)
+    :param y: center of the patch in y (that is ROWS!!)
     :param patchsize_x: total witdth of the patch
     :param patchsize_y: total hieght of the patch
     :param normalizer: instance of ImageNormalizer. if set to "None", it defaults to 'NoNormalizer' which will do no normalization
+    :param padValue: if not None, fill up the imagePatch with the value in case we're at the border
     :return: np.array: patchsize_x, patchsize_x
     """
+
     if normalizer is None:
         normalizer = imageNormalizer.NoNormalizer()
 
     assert patchsize_x%2 == 1 and patchsize_y%2 == 1, "only odd patchsize supported" # TODO relax to even patchsize
     img = normalizer.normalize(imgFile)
 
+    assert x<= img.shape[1], 'out of the image %d/%d' %(x,img.shape[1])
+    assert y<= img.shape[0], 'out of the image %d/%d' %(y,img.shape[0])
+
     X_WINDOWSIZE_HALF = int((patchsize_x-1)/2)
     Y_WINDOWSIZE_HALF = int((patchsize_y-1)/2)
-    x_box = range(max(1,x-X_WINDOWSIZE_HALF) , min(x+X_WINDOWSIZE_HALF,img.shape[0]))  # TODO THIS is still a mess with rows/col vs x,y
-    y_box = range(max(1,y-Y_WINDOWSIZE_HALF) , min(y+Y_WINDOWSIZE_HALF,img.shape[1]))
+    # x_box = range(max(1,x-X_WINDOWSIZE_HALF) , min(x+X_WINDOWSIZE_HALF,img.shape[0]))  # TODO THIS is still a mess with rows/col vs x,y
+    # y_box = range(max(1,y-Y_WINDOWSIZE_HALF) , min(y+Y_WINDOWSIZE_HALF,img.shape[1]))
+    x_box, y_box, xpad, ypad = __helper_boxsize(x,y ,X_WINDOWSIZE_HALF, Y_WINDOWSIZE_HALF, img.shape)
 
-    return img[np.ix_(x_box, y_box)] # confusing as rows are actually the y coordinate when indexing...
+    x_box = range(*x_box)
+    y_box = range(*y_box)
+
+    img_unpadded = img[np.ix_(y_box, x_box)]  # confusing as rows are actually the y coordinate when indexing...
+
+    if padValue is not None:
+        img_final = np.pad(img_unpadded, pad_width=(ypad, xpad), mode='constant', constant_values=padValue)
+
+        wasPadded = any([xpad[0] !=0, xpad[1] !=0, ypad[0] !=0, ypad[1] !=0] )
+        assert img_final.shape[0] == img_final.shape[1] == 28  #TODO hardcoded 28 patchsize
+    else:
+        img_final = img_unpadded
+        wasPadded = False
+
+    return img_final, wasPadded
+
+def __helper_boxsize(x,y ,X_WINDOWSIZE_HALF, Y_WINDOWSIZE_HALF, imgShape ):
+
+    if x-X_WINDOWSIZE_HALF < 1:
+        xpad_left = 1+np.abs(x-X_WINDOWSIZE_HALF)
+        xstart = 1
+    else:
+        xstart = x-X_WINDOWSIZE_HALF
+        xpad_left = 0
+
+    if x+X_WINDOWSIZE_HALF > imgShape[1]:
+        xpad_right = x+X_WINDOWSIZE_HALF - imgShape[1]
+        xend = imgShape[1]
+    else:
+        xpad_right = 0
+        xend = x+X_WINDOWSIZE_HALF
+
+    ## y
+
+    if y-Y_WINDOWSIZE_HALF < 1:
+        ypad_top = 1+np.abs(y-Y_WINDOWSIZE_HALF)
+        ystart = 1
+    else:
+        ystart = y-Y_WINDOWSIZE_HALF
+        ypad_top = 0
+
+    if y+Y_WINDOWSIZE_HALF > imgShape[0]:
+        ypad_bottom = y+Y_WINDOWSIZE_HALF - imgShape[0]
+        yend = imgShape[0]
+    else:
+        ypad_bottom = 0
+        yend = y+Y_WINDOWSIZE_HALF
+
+    assert all([xstart>0, xend>0, ystart>0,yend>0 ])
+    assert all([xpad_left>=0, xpad_right>=0, ypad_top>=0,ypad_bottom>=0 ])
+
+    return (xstart, xend),(ystart, yend),  (xpad_left, xpad_right), (ypad_top, ypad_bottom)
