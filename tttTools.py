@@ -98,7 +98,7 @@ def __ismember__(A,B):
 #     return [bind.get(itm, None) for itm in a]  # None can be replaced by any other "not in b" value
 
 
-def get_image_patch(imgFile, x, y, patchsize_x, patchsize_y, normalizer=None, padValue=None):
+def get_image_patch(imgFile, x, y, patchsize_x, patchsize_y, zoomfactor=1, normalizer=None, padValue=None):
     """
     isolates a patch at the given position in the image
 
@@ -107,22 +107,30 @@ def get_image_patch(imgFile, x, y, patchsize_x, patchsize_y, normalizer=None, pa
     :param y: center of the patch in y (that is ROWS!!)
     :param patchsize_x: total witdth of the patch
     :param patchsize_y: total hieght of the patch
+    :param zoomfactor: how much to zoom out of the image (giving the same requested patchsize), i.e 0.5 normal patchsize but covering twice the view
     :param normalizer: instance of ImageNormalizer. if set to "None", it defaults to 'NoNormalizer' which will do no normalization
     :param padValue: if not None, fill up the imagePatch with the value in case we're at the border
     :return: np.array: patchsize_x, patchsize_x
     """
 
+    patchsize_x -= 1
+    patchsize_y -= 1
+
     if normalizer is None:
         normalizer = imageNormalizer.NoNormalizer()
 
-    assert patchsize_x%2 == 1 and patchsize_y%2 == 1, "only odd patchsize supported" # TODO relax to even patchsize
+    assert patchsize_x%2 == 0 and patchsize_y%2 == 0, "only odd patchsize supported" # TODO relax to even patchsize
     img = normalizer.normalize(imgFile)
 
     assert x<= img.shape[1], 'out of the image %d/%d' %(x,img.shape[1])
     assert y<= img.shape[0], 'out of the image %d/%d' %(y,img.shape[0])
 
-    X_WINDOWSIZE_HALF = int((patchsize_x-1)/2)
-    Y_WINDOWSIZE_HALF = int((patchsize_y-1)/2)
+
+    assert zoomfactor == 1 or (1/zoomfactor) % 2 == 0,  'zoomfactor has to be  1/(2^n)'
+
+    X_WINDOWSIZE_HALF = int((1/zoomfactor) * ((patchsize_x)/2))  # these are always even before multiplication
+    Y_WINDOWSIZE_HALF = int((1/zoomfactor) * ((patchsize_y)/2))
+
     # x_box = range(max(1,x-X_WINDOWSIZE_HALF) , min(x+X_WINDOWSIZE_HALF,img.shape[0]))  # TODO THIS is still a mess with rows/col vs x,y
     # y_box = range(max(1,y-Y_WINDOWSIZE_HALF) , min(y+Y_WINDOWSIZE_HALF,img.shape[1]))
     x_box, y_box, xpad, ypad = __helper_boxsize(x,y ,X_WINDOWSIZE_HALF, Y_WINDOWSIZE_HALF, img.shape)
@@ -136,10 +144,19 @@ def get_image_patch(imgFile, x, y, patchsize_x, patchsize_y, normalizer=None, pa
         img_final = np.pad(img_unpadded, pad_width=(ypad, xpad), mode='constant', constant_values=padValue)
 
         wasPadded = any([xpad[0] !=0, xpad[1] !=0, ypad[0] !=0, ypad[1] !=0] )
-        assert img_final.shape[0] == img_final.shape[1] == 28  #TODO hardcoded 28 patchsize
+        assert img_final.shape == (patchsize_x * (1/zoomfactor), (1/zoomfactor)*patchsize_y) # check that the image gets larger as expected
     else:
         img_final = img_unpadded
         wasPadded = False
+
+    # get the respective scaling
+    f = int(1/zoomfactor)
+    img_final = img_final[::f, ::f]
+
+    if padValue is not None:
+        assert img_final.shape == (patchsize_x, patchsize_y), 'something messed up the requested image shape' #TODO -1 ugly
+    else:
+        raise  NotImplementedError('no proper teting implemented for non padding')
 
     return img_final, wasPadded
 

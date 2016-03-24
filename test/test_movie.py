@@ -2,9 +2,8 @@ import sys
 sys.path.append('..')
 from movie import Movie
 import numpy as np
-import pandas as pd
 import imageNormalizer
-from unittest.mock import patch, MagicMock
+from mock import patch, MagicMock
 import pytest
 import os
 
@@ -26,7 +25,7 @@ def test_createTATexpfilename():
 
 
 @patch('movie.os.path.isfile')
-@patch('imageNormalizer.NoNormalizer', autospec=True) # note that this mocks the instance of NoNormalizer created here!
+@patch('imageNormalizer.NoNormalizer') # note that this mocks the instance of NoNormalizer created here!
 def test_loadimage(mock_norm, mock_isfile):
     "loadimage just utilizes the Normalizer to load an image. no own action!"
     mock_norm.normalize.return_value = np.ones((1040,1388))
@@ -44,7 +43,7 @@ def test_loadimage(mock_norm, mock_isfile):
     assert mock_norm.normalize.called, 'normalization wasnt called'
 
 @patch('movie.os.path.isfile')
-@patch('imageNormalizer.NoNormalizer', autospec=True)
+@patch('imageNormalizer.NoNormalizer')
 def test_loadimage_return_none_if_no_file(mock_norm, mock_isfile):
     mock_norm.normalize.return_value = np.ones((1040,1388))
     mock_isfile.return_value = False
@@ -55,7 +54,7 @@ def test_loadimage_return_none_if_no_file(mock_norm, mock_isfile):
     assert img is None
 
 
-@patch('movie.NoNormalizer', autospec=True)  # mocking the NoNormalizer inside the package
+@patch('movie.NoNormalizer')  # mocking the NoNormalizer inside the package
 def test_load_image_segmentation(mock_norm):
     # TODO this mocking doesnt seem to be very pythonic
     mock_norm.return_value = mock_norm  # the constructor called when doing NoNormalizer() just returns the same mock again
@@ -67,7 +66,7 @@ def test_load_image_segmentation(mock_norm):
     assert mock_norm.normalize.called, 'no call to NoNormalizer.normalize'
 
 
-@patch('movie.NoNormalizer', autospec=True)  # mocking the NoNormalizer inside the package
+@patch('movie.NoNormalizer')  # mocking the NoNormalizer inside the package
 def test_load_image_segmentation_binarize(mock_norm):
     # TODO this mocking doesnt seem to be very pythonic
     mock_norm.return_value = mock_norm  # the constructor called when doing NoNormalizer() just returns the same mock again
@@ -80,7 +79,7 @@ def test_load_image_segmentation_binarize(mock_norm):
     assert mock_norm.normalize.called, 'no call to NoNormalizer.normalize'
     assert np.all(np.logical_or(img_SEG == True, img_SEG == False))
 
-@patch('movie.NoNormalizer', autospec=True)  # mocking the NoNormalizer inside the package
+@patch('movie.NoNormalizer')  # mocking the NoNormalizer inside the package
 def test_load_image_segmentation_exception_if_not_binary(mock_norm):
     """ must throw an exception if the loaded mask is not binary"""
 

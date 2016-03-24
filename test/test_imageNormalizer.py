@@ -1,7 +1,7 @@
 from imageNormalizer import NoNormalizer, Felix_Normalizer, MSch_Normalizer, SLIC_Normalizer
 import imageNormalizer
 import numpy as np
-from unittest.mock import patch
+from mock import patch
 import pytest
 
 
@@ -30,7 +30,7 @@ def test___bit_normalize__exception():
         imageNormalizer.__bit_normalize__(fakeImg)
 
 "------------------------------------------------------------------------"
-@patch('skimage.io.imread')
+@patch('imageNormalizer.skimage.io.imread')
 def test_NoNormalizer(mock_imread):
 
     # mock out the imread call to return a standrad image

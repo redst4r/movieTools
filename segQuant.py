@@ -44,8 +44,8 @@ class SegmentationReaderFelix(SegmentationReader):
         except FileNotFoundError as e:
             # return emtpy dataframe if no segmetnation available #TODO unit test this
             print("skipping this position because no segmentation image found: %s"%str(e))
-            raise NotImplementedError('some issue with yield here')
-            yield None
+            # yield None  # DONT EVEN RETURN NONE just terminate the generator
+            return   # funny: even a return "BLA" wouldnt give a return value, python detects its an generator and only return yield statements
 
         STATS = skimage.measure.regionprops(skimage.measure.label(segImg))  # different than matlab: regionprops doesnt take the raw image but the labeled one
 
