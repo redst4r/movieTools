@@ -13,7 +13,6 @@ segmentedObject = namedtuple('segObject', "relX relY timepoint position area coo
 class SegmentationReader(object):
     """
     base class for implementations of a segmenation reader
-
     """
 
     def __init__(self, ):
@@ -22,7 +21,10 @@ class SegmentationReader(object):
 
 class SegmentationReaderFelix(SegmentationReader):
     """
-    using felix segmented brightfield images
+    using Felix Buggenthins segmented brightfield images
+    see
+    "An automatic method for robust and fast cell detection in bright field images from high-throughput microscopy"
+    http://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-14-297
     """
 
     def __init__(self, the_movie:movie.Movie, SEG_WL='w00', fileExtension='png'):

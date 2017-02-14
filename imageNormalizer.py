@@ -82,7 +82,13 @@ class NoNormalizer(ImageNormalizer):
 class SLIC_Normalizer(ImageNormalizer):  # TODO UNIT TEST this class
     """
     method by Tinying Peng
+    see https://www.helmholtz-muenchen.de/icb/research/groups/quantitative-single-cell-dynamics/software/basic/index.html
+    now named `BaSiC`
+
+    note that this does not calculate the BaSiC normalization itself, it just applies the precalculated transformations
+    to the image of interest. The actual calculations are done in matlab
     """
+    # TODO: migrate matlab code, or at least state the required format
     
     def __init__(self, background_dir='background_SLIC'):
         """Constructor for SLIC_Normalizer"""
@@ -147,8 +153,6 @@ class SLIC_Normalizer(ImageNormalizer):  # TODO UNIT TEST this class
 
         plt.show()
 
-
-
     @lru_cache(maxsize=100)
     def normalize(self,filename):
         print('SLIC normalize called with: %s' % filename)
@@ -178,7 +182,7 @@ class SLIC_Normalizer(ImageNormalizer):  # TODO UNIT TEST this class
 
 class Felix_Normalizer(ImageNormalizer):
     """
-    using Felix's method which just subtracts the time-average image.
+    using Felix Buggenthin's method which just subtracts the time-average image.
     usually applied to brightfield images
     """
     def __init__(self, ):
@@ -198,7 +202,7 @@ class Felix_Normalizer(ImageNormalizer):
         I = I-np.min(I)
         img = I/np.max(I)
 
-        # felix's proposed inter-picture normailisation (the one i dont get)
+        # felix's proposed inter-picture normailisation
         # subtract from the corrected "img" the difference
         # mean(img)-mean(bg)
         img = img- (np.mean(img)-np.mean(bg))
@@ -216,7 +220,6 @@ class Felix_Normalizer(ImageNormalizer):
 
     def plot_background(self, filename):
         """plots the bg to normalize 'filename'"""
-
         plt.figure()
         plt.imshow(self.__load_bg_for__(filename))
         plt.colorbar()
@@ -225,7 +228,10 @@ class Felix_Normalizer(ImageNormalizer):
 
 class MSch_Normalizer(ImageNormalizer):
     """
-    along Michi Schwarzsfischers paper
+    along the paper:
+    Schwarzfischer, M. et al.
+    Efficient fluorescence image normalization for time lapse movies.
+    Proceedings MIAAB (Microscopic Image Analysis with Applications in Biology, 2nd September 2011, Heidelberg, Germany).
     """
 
     def __init__(self, ):
