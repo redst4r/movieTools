@@ -2,11 +2,11 @@ import tttTools
 import pandas as pd
 import skimage.measure
 from collections import namedtuple
-from imageNormalizer import MSch_Normalizer, NoNormalizer, __bit_normalize__
+from imageNormalizer import MSch_Normalizer, NoNormalizer, __bit_normalize__,  SLIC_Normalizer
 import numpy as np
 import os
 import re
-
+from segQuant import SegmentationReaderFelix, FluorescenceQuantifier
 
 class Movie(object):
     """an entire time lapse experiment """
@@ -131,53 +131,66 @@ class Movie(object):
         # TODO exception if no ssegmentaion is available
 
     def get_segmented_objects(self, position, timepoint, FluorWL, SEG_WL):
-        """
-        Inputs:
-        :param position:          position of interest
-        :param timepoint          the timepoint we're interested in
-        :param FluorWL            what wavelength to quantify
-        :param SEG_WL             extension of the segmenation images (e.g 'w01.png')
-         Outputs:
-           objects_df                 - pandas.Dataframe containing all the segmented objects with their properties
-        """
         raise Exception('method is deprecated and cannot be used any more. Use segQuant.SegmentationReader')
-        extension = 'png'
 
-        try:
-            segImg = self.load_segmentation_image(position, timepoint, SEG_WL, extension=extension)
-        except FileNotFoundError as e:
-            # return emtpy dataframe if no segmetnation available
-            print("skipping this position because no segmentation image found: %s"%str(e))
-            return pd.DataFrame()
+    def get_segmented_objects_from_images(self, timepoint, position, patchsize=29, zoomfactor=1):
+        """
+        retrieves the segmented objects from the images on the disk
+        also qunatifies them in w01, w02, w03
+        also returns image patches (28x28) and wether these patches had to be padded to get 28x28
 
-        # TODO: using michiSch normalization always
-        fluorImg = self.loadimage(position, timepoint, FluorWL, extension=extension, normalizer=MSch_Normalizer())
+        :param timepoint:
+        :param position:
+        :param patchsize: how big of patches to extract. however, its one to large here! 29 will yield patches of 28x28
+        :param zoomfactor: how much to zoom out, e.g. =1 will yield the original imagepatch (patchsize**2),
+                           setting it to 0.5 will extract an imagepatch of twice the size
+                           but scale it down to patchsize x patchsize
+        :return:
+        """
 
-        STATS = skimage.measure.regionprops(skimage.measure.label(segImg))  # different than matlab: regionprops doesnt take the raw image but the labeled one
+        seg_reader = SegmentationReaderFelix(self)
 
-        segObjects = []
-        segmentedObject = namedtuple('segObject', "relX relY time position area wavelength")
-        minsize, eccfilter = 25, 0.9  # filter out some dirt
-        for obj in filter(lambda x: x.area>minsize and x.eccentricity < eccfilter, STATS):
+        # we use both MSch and SLIC for fluorescence quantification
+        fluor_MSch = FluorescenceQuantifier(self, MSch_Normalizer())
+        fluor_SLIC = FluorescenceQuantifier(self, SLIC_Normalizer())
 
-            y, x = obj.centroid # DONE centroid is (row, column) !! row is usually the y coordinate. also ntoe that (0,0) is in the upper left corner!
-            t = timepoint
-            p = position
-            area = obj.area
-            wl = np.sum(fluorImg[obj.coords[:,0], obj.coords[:,1]])  # coords is a n X 2 array with pixel coordinates
+        BFnormalizer = SLIC_Normalizer()  # when loading the brightfield patches
 
-            segObjects.append(segmentedObject(relX=x, relY=y, time=t, position=p, area=area, wavelength=wl))
+        object_dicts = []
+        image_patches = []
+        image_patches_padded = []
+        for counter, segObject in enumerate(seg_reader.iterate_segmented_objects(position=position, timepoint=timepoint)):
+            w1, w2, w3 = [fluor_MSch.quantify(segObject, WL) for WL in
+                          ['w01', 'w02', 'w03']]  # will contain None if no FL image present
+            w1_SLIC, w2_SLIC, w3_SLIC = [fluor_SLIC.quantify(segObject, WL) for WL in ['w01', 'w02', 'w03']]
 
-        # TODO: absolute coordinates
-        # # get absolute coordinates
-        # tatfile = tttTools.createTATexpfilename(movieID)
-        #
-        # # need to "transpose" to get the vectors of relX ...
-        # relXV, relYV, timeV, positionV, _, _ = list(zip(*segObjects))  # WARNING: carful here with the order on the left: has to be the same as in def of namedtuple
-        # absX, absY = tttTools.mapCoordinates_relative2absolute(relXV,relYV,positionV,tatfile)
-        # objects_struct.absX = absX;
-        # objects_struct.absY = absY;
+            object_dicts.append({'x': segObject.relX, 'y': segObject.relY,
+                                 'position': segObject.position,
+                                 'timepoint': segObject.timepoint,
+                                 'area': segObject.area,
+                                 'w01': w1, 'w02': w2, 'w03': w3,
+                                 'w01_SLIC': w1_SLIC, 'w02_SLIC': w2_SLIC, 'w03_SLIC': w3_SLIC,
+                                 'h5counter': counter,
+                                 'uniqueKey': 'p%d_t%d_%d' % (segObject.position, segObject.timepoint, counter)})
 
-        objects_df = pd.DataFrame(segObjects)
+            thePatch, wasPadded = self.get_image_patch(segObject.position, segObject.timepoint,
+                                                       int(segObject.relX), int(segObject.relY),
+                                                       wavelength='w00', extension='png',
+                                                       patchsize_x=patchsize, patchsize_y=patchsize,
+                                                       normalizer = BFnormalizer, padValue = np.nan
+                                                       )
+            image_patches.append(thePatch)
+            image_patches_padded.append(wasPadded)
 
-        return objects_df
+        return object_dicts, image_patches, image_patches_padded
+
+    def get_image_patch(self, position, timepoint, x, y, wavelength, extension, patchsize_x, patchsize_y, normalizer, padValue):
+        """
+        get a single image patch, basically a wrapper to tttTools.get_image_patch
+        returns a tuple, the patch and a boolean whether the patch is padded
+        """
+        fname = self.createTTTfilename(position, timepoint, wavelength, extension)
+        thePatch, wasPadded = tttTools.get_image_patch(fname, x=int(x), y=int(y),  # due to caching, the actual image is loaded only once, not for each call of get_image_patch
+                                                       patchsize_x=patchsize_x, patchsize_y=patchsize_y,
+                                                       normalizer=normalizer, padValue=padValue)
+        return thePatch, wasPadded
