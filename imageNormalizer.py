@@ -1,5 +1,5 @@
 import skimage.io
-from scipy.io import loadmat # MATLAB file loading
+from scipy.io import loadmat  # MATLAB file loading
 from functools import lru_cache
 import tttTools
 import os
@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def __load_raw_image__(filename:str):
+def _load_raw_image(filename:str):
     """
     loads an image file from the disk and returns it as np.array. THIS is the prefered method of loading stuff
     as there are some issues with e.g. scipy.misc.imread!!
@@ -16,11 +16,12 @@ def __load_raw_image__(filename:str):
     :return: np.array of the image
     """
 
-    # img = scipy.misc.imread(filename) # WARNING: THIS ONE IS BAD, something strange happens when we load binary images: its non-detemrinsitc, smthimes the loaded image is crap!!
+    # WARNING: THIS ONE IS BAD, something strange happens when we load binary images: its non-detemrinsitc, smthimes the loaded image is crap!!
+    # img = scipy.misc.imread(filename) 
     return skimage.io.imread(filename)
 
 
-def __bit_normalize__(img:np.ndarray):
+def _bit_normalize(img:np.ndarray):
     "does bit conversion for a given image. supposed to put the values into [0,1]"
 
     if img.dtype == np.uint8:
@@ -38,11 +39,13 @@ def __bit_normalize__(img:np.ndarray):
 
     return img
 
+
 @lru_cache(maxsize=100)
 def loadmat_cached(matfile):
     "just a cached version to scipy.io.loadmat since many calls to _SLIC_load_precomputed_bgs with different args load the same matfile"
     print('SLIC: loading matfile %s' %matfile)
     return loadmat(matfile)
+
 
 class ImageNormalizer(object):
     """
@@ -53,7 +56,7 @@ class ImageNormalizer(object):
     note that these classes dont calculate/estimate the image normalization
     but just apply precalculated results
     """
-    
+
     def __init__(self, ):
         """Constructor for ImageNormalizer"""
 
@@ -76,7 +79,7 @@ class NoNormalizer(ImageNormalizer):
 
     @lru_cache(maxsize=100)
     def normalize(self, filename):
-        return __load_raw_image__(filename)
+        return _load_raw_image(filename)
 
 
 class SLIC_Normalizer(ImageNormalizer):  # TODO UNIT TEST this class
@@ -154,8 +157,7 @@ class SLIC_Normalizer(ImageNormalizer):  # TODO UNIT TEST this class
         plt.show()
 
     @lru_cache(maxsize=100)
-    def normalize(self,filename):
-        print('SLIC normalize called with: %s' % filename)
+    def normalize(self, filename):
         """
         the image Equation:
         I_obs = (I_true  + base) * S + D
@@ -171,7 +173,7 @@ class SLIC_Normalizer(ImageNormalizer):  # TODO UNIT TEST this class
         """
 
         matDict = self._SLIC_load_precomputed_bgs(filename)
-        I = __load_raw_image__(filename)  # dont use __bit_normalize here, the SLIC is calculated on the [0, 255] range, hence it has to be applied to this range
+        I = _load_raw_image(filename)  # dont use __bit_normalize here, the SLIC is calculated on the [0, 255] range, hence it has to be applied to this range
 
         _, _, _, timepoint, _, _ = tttTools.parseTTTfilename(filename)
         t = matDict['timepoint'].flatten()  # all the flatten() action because timepoint and fi_base are stored as 2D matrixes in matlab instead of vectors
@@ -186,7 +188,7 @@ class Felix_Normalizer(ImageNormalizer):
     usually applied to brightfield images
     """
     def __init__(self, ):
-        """Constructor for SLIC_Normalizer"""
+        """Constructor for Felix_Normalizer"""
         super().__init__()
 
     @lru_cache(maxsize=100)
@@ -209,12 +211,12 @@ class Felix_Normalizer(ImageNormalizer):
 
         return img
 
-    def __load_bg_for__(self,target_file):
+    def _load_bg_for(self,target_file):
         """loads the background required to normalize target_file
         i.e. targetfile is not the file which gets loaded here!!"""
         directory, movieID, position, timepoint, wavelength, extension = tttTools.parseTTTfilename(target_file)
-        bgfilename = '%s/../background_projected/%s_p%04d/%s_p%04d_w%s_projbg.png' %(directory,movieID,position,movieID,position,wavelength)
-        bg = __bit_normalize__(__load_raw_image__(bgfilename))
+        bgfilename = '%s/../background_projected/%s_p%04d/%s_p%04d_w%s_projbg.png' % (directory, movieID, position, movieID, position, wavelength)
+        bg = _bit_normalize(_load_raw_image(bgfilename))
         return bg
 
 
@@ -242,7 +244,7 @@ class MSch_Normalizer(ImageNormalizer):
     def normalize(self, filename):
 
         print('MSCH normalize called with: %s' % filename)
-        img = __bit_normalize__(__load_raw_image__(filename))
+        img = _bit_normalize(_load_raw_image(filename))
         directory, movieID, position, timepoint, wavelength, extension = tttTools.parseTTTfilename(filename)
         BGpos_folder = "%s/../background/%s_p%.4d/" % (directory, movieID, position)
         bgname = "%s/%s_p%.4d_t%.5d_z001_w%s.png" % (BGpos_folder, movieID, position, timepoint, wavelength)
@@ -250,9 +252,9 @@ class MSch_Normalizer(ImageNormalizer):
         offsetname = '%s/offset_w%s.png'% (BGpos_folder, wavelength)
 
         if os.path.exists(bgname):
-            background = __bit_normalize__(__load_raw_image__(bgname))
+            background = _bit_normalize(_load_raw_image(bgname))
             if os.path.exists(gainname):
-                gain = __bit_normalize__(__load_raw_image__(gainname))*255
+                gain = _bit_normalize(_load_raw_image(gainname))*255
             else:
                 # raise Exception('Warning: Gain/offset not found %s using old normalization\n' % gainname)
                 print('Warning: Gain/offset not found %s using old normalization\n' % gainname)

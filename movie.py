@@ -1,12 +1,10 @@
 import tttTools
-import pandas as pd
-import skimage.measure
-from collections import namedtuple
-from imageNormalizer import MSch_Normalizer, NoNormalizer, __bit_normalize__,  SLIC_Normalizer
+from imageNormalizer import MSch_Normalizer, NoNormalizer, _bit_normalize, SLIC_Normalizer
 import numpy as np
 import os
 import re
 from segQuant import SegmentationReaderFelix, FluorescenceQuantifier
+
 
 class Movie(object):
     """an entire time lapse experiment """
@@ -121,7 +119,7 @@ class Movie(object):
 
         # create the NoNormalizer on the fly, which just loads the plain image
         img_SEG = NoNormalizer().normalize(fname) #  # this loads the image as it is, ie no bit conversion!
-        img_SEG =  __bit_normalize__(img_SEG)  # explicitly do the bit conversion, such that 255 -> 1
+        img_SEG =  _bit_normalize(img_SEG)  # explicitly do the bit conversion, such that 255 -> 1
 
         if not np.all(np.logical_or(img_SEG == True, img_SEG == False)):  # make sure its a binary mask
             raise ValueError('segmentation image is not binary!')

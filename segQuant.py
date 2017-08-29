@@ -86,7 +86,3 @@ class FluorescenceQuantifier(object):
         else:
             sum_int = np.sum(img[segObject.coords[:,0], segObject.coords[:,1]])
             return sum_int
-
-
-
-

@@ -1,7 +1,7 @@
 """
 stuff to handle tracked data. not for actual tracking!
 """
-from scipy.io import loadmat # MATLAB file loading
+from scipy.io import loadmat  # MATLAB file loading
 import numpy as np
 import pandas as pd
 import progressbar
