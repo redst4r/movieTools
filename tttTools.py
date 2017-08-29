@@ -1,7 +1,8 @@
 import re
 import numpy as np
+import config
+import imageNormalizer  # careful, cyclic dependence of tttTools and imageNormzlier
 
-import imageNormalizer # careful, cyclic dependence of tttTools and imageNormzlier
 
 def parseTTTfilename(filename):
     "returns (directory, movieID, position, timepoint, wavelength). dir is the entire folder where the img is located (not the reference folder from TTT/movie)"
@@ -21,13 +22,7 @@ def parseTTTfilename(filename):
 
 
 def getTTTDir():
-    import getpass
-    username = getpass.getuser()
-    if username in ['gpu-devuser01','gpu_devuser01']:
-        TTTDIR = '/home/%s/MSt/TTT/'%username
-    else:
-        TTTDIR = '/storage/icbTTTdata/TTT/'
-    return TTTDIR
+    return config.TTTDIR
 
 
 
