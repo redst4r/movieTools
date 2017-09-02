@@ -43,7 +43,7 @@ def _bit_normalize(img:np.ndarray):
 @lru_cache(maxsize=100)
 def loadmat_cached(matfile):
     "just a cached version to scipy.io.loadmat since many calls to _SLIC_load_precomputed_bgs with different args load the same matfile"
-    print('SLIC: loading matfile %s' %matfile)
+    print('BaSiC: loading matfile %s' %matfile)
     return loadmat(matfile)
 
 
@@ -93,7 +93,7 @@ class SLIC_Normalizer(ImageNormalizer):  # TODO UNIT TEST this class
     """
     # TODO: migrate matlab code, or at least state the required format
     
-    def __init__(self, background_dir='background_SLIC'):
+    def __init__(self, background_dir='background_BaSiC'):
         """Constructor for SLIC_Normalizer"""
         super().__init__()
         self.background_dir = background_dir
@@ -112,7 +112,7 @@ class SLIC_Normalizer(ImageNormalizer):  # TODO UNIT TEST this class
         directory, movieID, position, timepoint, wavelength, extension = tttTools.parseTTTfilename(filename)
 
         bgFolder = "%s/../%s" % (directory, self.background_dir)  # as directory is not the movieDir, but the one where the file is located
-        pattern = re.compile(r"%s_p%.04d_(\d+)-(\d+)_w%s.%s_SLIC.mat" % (movieID, position, wavelength, extension))
+        pattern = re.compile(r"%s_p%.04d_(\d+)-(\d+)_w%s.%s_BaSiC.mat" % (movieID, position, wavelength, extension))
 
         candidates = []
         for f in os.listdir(bgFolder):
@@ -136,9 +136,11 @@ class SLIC_Normalizer(ImageNormalizer):  # TODO UNIT TEST this class
         SLIC_dict = self._SLIC_load_precomputed_bgs(filename)
         plt.figure()
         plt.subplot(2,2,1)
-        plt.imshow(SLIC_dict['darkfield'])
-        plt.title('darkfield')
-        plt.colorbar()
+
+        if 'darkfield' in SLIC_dict:
+            plt.imshow(SLIC_dict['darkfield'])
+            plt.title('darkfield')
+            plt.colorbar()
 
         plt.subplot(2,2,2)
         plt.imshow(SLIC_dict['flatfield'])
@@ -146,7 +148,7 @@ class SLIC_Normalizer(ImageNormalizer):  # TODO UNIT TEST this class
         plt.colorbar()
 
         plt.subplot(2,2,3)
-        plt.plot(SLIC_dict['timepoint'].T, SLIC_dict['fi_base'])
+        plt.plot(SLIC_dict['timepoint'], SLIC_dict['basefluor'])
         plt.title('base')
 
         plt.subplot(2,2,4)
@@ -177,9 +179,17 @@ class SLIC_Normalizer(ImageNormalizer):  # TODO UNIT TEST this class
 
         _, _, _, timepoint, _, _ = tttTools.parseTTTfilename(filename)
         t = matDict['timepoint'].flatten()  # all the flatten() action because timepoint and fi_base are stored as 2D matrixes in matlab instead of vectors
-        b = matDict['fi_base'][t==timepoint].flatten()
-        imgCorrect = (I-matDict['darkfield'])/matDict['flatfield'] -b # (I - DF)/FF - Base
+        b = matDict['basefluor'].flatten()[t==timepoint]
+
+        if 'darkfield' in matDict:
+            imgCorrect = (I-matDict['darkfield'])/matDict['flatfield'] -b # (I - DF)/FF - Base
+        else:
+            # for brightfield images, a darkfield is not needed/estimated, i.e. darkfield=0
+            imgCorrect = I / matDict['flatfield'] - b  # (I - DF)/FF - Base
         return imgCorrect
+
+# some alais for the BaSiC=SLIC
+BaSiC_Normalizer = SLIC_Normalizer
 
 
 class Felix_Normalizer(ImageNormalizer):
