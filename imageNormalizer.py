@@ -207,17 +207,28 @@ class Felix_Normalizer(ImageNormalizer):
         :param filename: the path to the image file
         :return:
         """
-        bg = self.__load_bg_for__(filename)
-        I = __bit_normalize__(__load_raw_image__(filename))
+        bg = self._load_bg_for(filename)
+        I = _bit_normalize(_load_raw_image(filename))
 
-        I = I/bg
-        I = I-np.min(I)
-        img = I/np.max(I)
+        if False:
+            I = I/bg
+            I = I-np.min(I)
+            img = I/np.max(I)
 
-        # felix's proposed inter-picture normailisation
-        # subtract from the corrected "img" the difference
-        # mean(img)-mean(bg)
-        img = img- (np.mean(img)-np.mean(bg))
+            # felix's proposed inter-picture normailisation (the one i dont get)
+            # subtract from the corrected "img" the difference
+            # mean(img)-mean(bg)
+            img = img- (np.mean(img)-np.mean(bg))
+
+        # along the matlab code
+        else:
+            I = I/bg
+            I = I/I.mean()
+            # Empirically determined correction threshold that depends on the used
+            # time lapse microscope.
+            I[I>1.2] = 1.2
+            I[I<.7] = 0.7
+            img = I
 
         return img
 
