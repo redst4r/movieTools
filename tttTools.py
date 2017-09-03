@@ -58,8 +58,8 @@ def mapCoordinates_relative2absolute(relxVector, relyVector, positionVector, xml
     return absX, absY
 
 
-from bs4 import BeautifulSoup
 def create_struct_from_tat_xml(xmlfilename):
+    from bs4 import BeautifulSoup
     with open(xmlfilename, 'r') as f:
         bs = BeautifulSoup(f, 'xml.parser')
     """
@@ -116,6 +116,11 @@ def get_image_patch(imgFile, x, y, patchsize_x, patchsize_y, zoomfactor=1, norma
 
     assert patchsize_x%2 == 0 and patchsize_y%2 == 0, "only odd patchsize supported" # TODO relax to even patchsize
     img = normalizer.normalize(imgFile)
+    img_final, wasPadded = _extract_patch(img, x, y, patchsize_x, patchsize_y, zoomfactor, padValue)
+
+    return img_final, wasPadded
+
+def _extract_patch(img, x, y, patchsize_x, patchsize_y, zoomfactor, padValue):
 
     assert x<= img.shape[1], 'out of the image %d/%d' %(x,img.shape[1])
     assert y<= img.shape[0], 'out of the image %d/%d' %(y,img.shape[0])

@@ -6,7 +6,6 @@ import skimage.measure
 from collections import namedtuple
 import numpy as np
 from imageNormalizer import MSch_Normalizer
-import movie
 segmentedObject = namedtuple('segObject', "relX relY timepoint position area coords")
 
 
@@ -27,7 +26,7 @@ class SegmentationReaderFelix(SegmentationReader):
     http://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-14-297
     """
 
-    def __init__(self, the_movie:movie.Movie, SEG_WL='w00', fileExtension='png'):
+    def __init__(self, the_movie, SEG_WL='w00', fileExtension='png'):
         """Constructor for SegmentationReaderFelix(SegmentationReader)"""
         super().__init__()
         self.movie = the_movie
@@ -65,7 +64,7 @@ class SegmentationReaderFelix(SegmentationReader):
 
 class FluorescenceQuantifier(object):
 
-    def __init__(self, the_movie:movie.Movie, normalizer):
+    def __init__(self, the_movie, normalizer):
         self.movie = the_movie
 
         # nice trick, so that every call to quantify can use cached results
