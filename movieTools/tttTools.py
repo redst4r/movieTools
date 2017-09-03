@@ -1,7 +1,7 @@
 import re
 import numpy as np
-import config
-import imageNormalizer  # careful, cyclic dependence of tttTools and imageNormzlier
+import movieTools.config as config
+import movieTools.imageNormalizer
 
 
 def parseTTTfilename(filename):
@@ -112,7 +112,7 @@ def get_image_patch(imgFile, x, y, patchsize_x, patchsize_y, zoomfactor=1, norma
     patchsize_y -= 1
 
     if normalizer is None:
-        normalizer = imageNormalizer.NoNormalizer()
+        normalizer = movieTools.imageNormalizer.NoNormalizer()
 
     assert patchsize_x%2 == 0 and patchsize_y%2 == 0, "only odd patchsize supported" # TODO relax to even patchsize
     img = normalizer.normalize(imgFile)

@@ -1,9 +1,9 @@
-import tttTools
-from imageNormalizer import MSch_Normalizer, NoNormalizer, _bit_normalize, SLIC_Normalizer
+import movieTools.tttTools as tttTools
+from movieTools.imageNormalizer import MSch_Normalizer, NoNormalizer, _bit_normalize, SLIC_Normalizer
 import numpy as np
 import os
 import re
-from segQuant import SegmentationReaderFelix, FluorescenceQuantifier
+from movieTools.segQuant import SegmentationReaderFelix, FluorescenceQuantifier
 
 
 class Movie(object):

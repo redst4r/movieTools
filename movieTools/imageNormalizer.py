@@ -1,7 +1,7 @@
 import skimage.io
 from scipy.io import loadmat  # MATLAB file loading
 from functools import lru_cache
-import tttTools
+import movieTools.tttTools as tttTools
 import os
 import re
 import numpy as np

@@ -5,7 +5,7 @@ import pandas as pd
 import skimage.measure
 from collections import namedtuple
 import numpy as np
-from imageNormalizer import MSch_Normalizer
+from movieTools.imageNormalizer import MSch_Normalizer
 segmentedObject = namedtuple('segObject', "relX relY timepoint position area coords")
 
 
