@@ -32,6 +32,13 @@ class Movie(object):
 
         return positions
 
+    def get_timepoints(self, position):
+        "returns a list of timepoints (sorted) of images available at a position"
+        all_images_dict= self.get_all_images()
+        timepoints = [time for (pos, time, wl), fname in all_images_dict.items() if pos == position]
+        timepoints = np.sort(timepoints).tolist()
+        return timepoints
+
     def get_all_images(self):
         """
         retrieves all images from the movie, across all timepoints, positions
